@@ -33,7 +33,7 @@ data class Settings(var verbose : Boolean,      //Verbosity
                     val useQueryType : Boolean = false,
                     val reasoner : ReasonerMode = ReasonerMode.owl
                     ){
-    var prefixMapCache: HashMap<String, String>? = null
+    private var prefixMapCache: HashMap<String, String>? = null
     fun prefixMap() : HashMap<String, String> {
         if(prefixMapCache != null) return prefixMapCache as HashMap<String, String>
         prefixMapCache = hashMapOf(
@@ -113,19 +113,19 @@ class Main : CliktCommand() {
 
         //check that background knowledge exists
         var backgr = ""
-        if(back != null){
+        back?.let {
             assert(tripleStore == null)
-            val file = File(back.toString())
+            val file = File(it.toString())
             if(file.exists()){
                 backgr = file.readText()
-            }else println("Could not find file for background knowledge: ${file.path}")
+            } else println("Could not find file for background knowledge: ${file.path}")
         }
 
         var tripleStoreUrl = ""
-        if (tripleStore != null){
+        tripleStore?.let {
             assert(back == null)
 
-            val url = tripleStore.toString() + "/query"
+            val url = "$it/query"
 
             // We check if the connection exists by querying the triple store for a single element
             // If the query fails, we exit the program. There might be a more elegant way of doing it
@@ -135,12 +135,12 @@ class Main : CliktCommand() {
             val qexec = conn.query(query)
             val result: ResultSet = qexec.execSelect()
 
-            // check that we retrieved something
+            // Check that we retrieved something
             if (!result.hasNext()) {
                 println("Error: the url for the triple store is not valid.")
                 exitProcess(-1)
             } else {
-                tripleStoreUrl = tripleStore.toString()
+                tripleStoreUrl = it.toString()
                 conn.close()
             }
         }
@@ -165,8 +165,8 @@ class Main : CliktCommand() {
             if(input.size == 1) repl.command("read", input[0].toString())
             if(input.size > 1) repl.command("multiread", input.joinToString(";"))
         }
-        if(replay != null){
-            val str = replay.toString()
+        replay?.let { path ->
+            val str = path.toString()
             File(str).forEachLine {
                 if(!it.startsWith("#") && it != "") {
                     println("MO-auto> $it")
