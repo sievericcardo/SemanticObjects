@@ -29,7 +29,6 @@ import org.semanticweb.owlapi.reasoner.NodeSet
 import java.io.File
 import java.io.FileWriter
 import java.util.*
-import kotlin.streams.toList
 
 data class InfluxDBConnection(val url : String, val org : String, val token : String, val bucket : String){
     private var influxDBClient : InfluxDBClientKotlin? = null
@@ -62,7 +61,8 @@ class Interpreter(
     var heap: GlobalMemory,             // This is a map from objects to their heap memory
     var simMemory: SimulationMemory,    // This is a map from simulation objects to their handler
     val staticInfo: StaticTable,                // Class table etc.
-    val settings : Settings                    // Settings from the user
+    val settings : Settings,                    // Settings from the user
+    var queryCache: QueryCache = mutableMapOf() // Cache for SPARQL queries
 ) {
 
     // TripleManager used to provide virtual triples etc.
@@ -137,7 +137,13 @@ class Interpreter(
     }
 
     // Run SPARQL query (str)
-    fun query(str: String): ResultSet? {
+    fun query(str: String, includeToCache: Boolean = false): ResultSet? {
+        if (queryCache.containsKey(str)) return queryCache[str]
+
+        // For cases that do not have "domain:", we don't have side effects in saving the result
+        // as domain changes over time during the execution, the rest retrieve information from the triples
+        val overrideCacheSettings = !str.contains("domain:")
+
         // Adding prefixes to the query
         var queryWithPrefixes = ""
         for ((key, value) in settings.prefixMap()) queryWithPrefixes += "PREFIX $key: <$value>\n"
@@ -149,7 +155,12 @@ class Interpreter(
         val query = QueryFactory.create(queryWithPrefixes)
         val qexec = QueryExecutionFactory.create(query, model)
 
-        return qexec.execSelect()
+        val result: ResultSet? = qexec.execSelect()
+
+        if (result != null && (includeToCache || overrideCacheSettings))
+            queryCache[str] = result
+
+        return result
     }
 
 
@@ -225,9 +236,9 @@ class Interpreter(
         for (expr in params) {
             val p = eval(expr, stackMemory, heap, simMemory, obj)
             str = when (p.tag) {
-                INTTYPE     -> str.replace("%${i++}", if(SPARQL) "\"${p.literal}\"^^xsd:integer" else p.literal);
-                DOUBLETYPE  -> str.replace("%${i++}", if(SPARQL)"\"${p.literal}\"^^xsd:double" else p.literal);
-                STRINGTYPE  -> str.replace("%${i++}", p.literal);
+                INTTYPE     -> str.replace("%${i++}", if(SPARQL) "\"${p.literal}\"^^xsd:integer" else p.literal)
+                DOUBLETYPE  -> str.replace("%${i++}", if(SPARQL)"\"${p.literal}\"^^xsd:double" else p.literal)
+                STRINGTYPE  -> str.replace("%${i++}", p.literal)
                 else        -> str.replace("%${i++}", "run:${p.literal}")
             }
         }
