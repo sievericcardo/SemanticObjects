@@ -39,63 +39,46 @@ class Translate : WhileBaseVisitor<ProgramElement>() {
         var modelsTable : Map<String, List<ModelsEntry>> = emptyMap()
         var hidden : Set<String> = setOf()
         for(cl in ctx!!.class_def()){
-            val modelsList =
-            if(cl.models_block() != null){
-                val models = translateModels(cl.models_block())
-                owldescr[cl!!.className.text] = models.second
-                models.first
-            } else emptyList()
-            modelsTable = modelsTable + Pair(cl.className.text, modelsList)
-            if(cl.hidden != null) hidden = hidden + cl.className.text
+            val modelsList = cl.models_block()?.let { modelsBlock ->
+                val models = translateModels(modelsBlock)
+                owldescr[cl.className.text] = models.second
+                modelsTable += Pair(cl.className.text, models.first)
+            } ?: run {
+                modelsTable += Pair(cl.className.text, emptyList())
+            }
 
-                    if(cl.superType != null){
-                val superType =
-                    TypeChecker.translateType(cl.superType, cl!!.className.text, mutableMapOf())
-                var maps = hierarchy[superType.getPrimary().getNameString()]
-                if(maps == null) maps = mutableSetOf()
-                maps.add(cl!!.className.text)
-                hierarchy[superType.getPrimary().getNameString()] = maps
-            } else {
-                roots += cl!!.className.text
-            }
-            val inFields = if(cl.external != null) {
-                var res = listOf<FieldInfo>()
-                if(cl.external.fieldDecl() != null) {
-                    for (nm in cl.external.fieldDecl()) {
-                        val cVisibility = if(nm.HIDE() != null) Visibility.HIDE else Visibility.DEFAULT
-                        res = res + FieldInfo(
-                            nm.NAME().text,
-                            TypeChecker.translateType(nm.type(), cl.className.text, mutableMapOf()),
-                            cVisibility,
-                            BaseType(cl!!.className.text),
-                            nm.domain != null
-                        )
-                    }
-                }
-                res
-            } else {
-                listOf()
-            }
-            val exFields = if(cl.internal != null) {
-                var res = listOf<FieldInfo>()
+            if (cl.hidden != null) hidden += cl.className.text
 
-                if(cl.internal.fieldDeclInit()!= null) {
-                    for (nm in cl.internal.fieldDeclInit()) {
-                        val cVisibility = if(nm.HIDE() != null) Visibility.HIDE else Visibility.DEFAULT
-                        res = res + FieldInfo(
-                            nm.NAME().text,
-                            TypeChecker.translateType(nm.type(), cl.className.text, mutableMapOf()),
-                            cVisibility,
-                            BaseType(cl!!.className.text),
-                            nm.domain != null,
-                            visit(nm.expression()) as Expression
-                        )
-                    }
-                }
-                res
-            } else {
-                listOf()
+            cl.superType?.let { superType ->
+                val superTypeName = TypeChecker.translateType(superType, cl.className.text, mutableMapOf()).getPrimary().getNameString()
+                val maps = hierarchy.getOrPut(superTypeName) { mutableSetOf() }
+                maps += cl.className.text
+            } ?: run {
+                roots += cl.className.text
             }
+
+            val inFields = cl.external?.fieldDecl()?.map { nm ->
+                val cVisibility = if (nm.HIDE() != null) Visibility.HIDE else Visibility.DEFAULT
+                FieldInfo(
+                    nm.NAME().text,
+                    TypeChecker.translateType(nm.type(), cl.className.text, mutableMapOf()),
+                    cVisibility,
+                    BaseType(cl.className.text),
+                    nm.domain != null
+                )
+            } ?: listOf()
+
+            val exFields = cl.internal?.fieldDeclInit()?.map { nm ->
+                val cVisibility = if (nm.HIDE() != null) Visibility.HIDE else Visibility.DEFAULT
+                FieldInfo(
+                    nm.NAME().text,
+                    TypeChecker.translateType(nm.type(), cl.className.text, mutableMapOf()),
+                    cVisibility,
+                    BaseType(cl.className.text),
+                    nm.domain != null,
+                    visit(nm.expression()) as Expression
+                )
+            } ?: listOf()
 
             val fields = (inFields + exFields)
 
@@ -152,39 +135,39 @@ class Translate : WhileBaseVisitor<ProgramElement>() {
 
     private fun paramListTranslate(ctx: ParamListContext?) : List<String> {
         val res = mutableListOf<String>()
-        if(ctx!!.param() != null) {
-            for (nm in ctx.param())
-                res += nm.NAME().text
-        }
+        ctx!!.param()?.let { for (nm in it) res += nm.NAME().text }
         return res
     }
 
     override fun visitSuper_statement(ctx: Super_statementContext?): ProgramElement {
         val ll = emptyList<Expression>().toMutableList().toMutableList()
         val def = getClassDecl(ctx as RuleContext)
-        val declares = if(ctx!!.declType == null) null else
-            TypeChecker.translateType(ctx.declType, if(def != null) def!!.className.text else ERRORTYPE.name, mutableMapOf())
+        val declares = ctx.declType?.let { declType ->
+            TypeChecker.translateType(declType, if(def != null) def!!.className.text else ERRORTYPE.name, mutableMapOf())
+        }
         var met : RuleContext? = ctx
         while(met != null && met !is Method_defContext){
             met = met.parent
         }
         val method = (met as Method_defContext).NAME().text
 
-        if(ctx!!.target == null){
+        ctx.target?.let { target ->
             for(i in 0 until ctx.expression().size)
                 ll += visit(ctx.expression(i)) as Expression
 
-            return SuperStmt(Names.getVarName(),
+            return SuperStmt(
+                visit(target) as Location,
                 method,
                 ll,
                 ctx!!.start.line,
                 declares
             )
-        } else {
+        } ?: run {
             for(i in 0 until ctx.expression().size)
                 ll += visit(ctx.expression(i)) as Expression
+
             return SuperStmt(
-                visit(ctx.target) as Location,
+                Names.getVarName(),
                 method,
                 ll,
                 ctx!!.start.line,
@@ -196,24 +179,26 @@ class Translate : WhileBaseVisitor<ProgramElement>() {
     override fun visitCall_statement(ctx: Call_statementContext?): ProgramElement {
         val ll = emptyList<Expression>().toMutableList().toMutableList()
         val def = getClassDecl(ctx as RuleContext)
-        val declares = if(ctx!!.declType == null) null else
-            TypeChecker.translateType(ctx.declType, if(def != null) def!!.className.text else ERRORTYPE.name, mutableMapOf())
-        if(ctx!!.target == null){
-            for(i in 1 until ctx.expression().size)
+        val declares = ctx.declType?.let { declType ->
+            TypeChecker.translateType(declType, if(def != null) def!!.className.text else ERRORTYPE.name, mutableMapOf())
+        }
+        ctx.target?.let { target ->
+            for (i in 2 until ctx.expression().size)
                 ll += visit(ctx.expression(i)) as Expression
-            return CallStmt(Names.getVarName(),
-                visit(ctx.expression(0)) as Location,
+            return CallStmt (
+                visit(ctx.target) as Location,
+                visit(ctx.expression(1)) as Location,
                 ctx.NAME().text,
                 ll,
                 ctx!!.start.line,
                 declares
             )
-        } else {
-            for(i in 2 until ctx.expression().size)
+        } ?: run {
+            for(i in 1 until ctx.expression().size)
                 ll += visit(ctx.expression(i)) as Expression
             return CallStmt(
-                visit(ctx.target) as Location,
-                visit(ctx.expression(1)) as Location,
+                Names.getVarName(),
+                visit(ctx.expression(0)) as Location,
                 ctx.NAME().text,
                 ll,
                 ctx!!.start.line,
@@ -263,11 +248,11 @@ class Translate : WhileBaseVisitor<ProgramElement>() {
 
     override fun visitSparql_statement(ctx: Sparql_statementContext?): ProgramElement {
         val target = visit(ctx!!.target) as Location
-        if(ctx.declType != null) {
+        ctx.declType?.let { declType ->
             val cDecl = getClassDecl(ctx)
             val className = if(cDecl == null) ERRORTYPE.name else cDecl.className.text
             val targetType =
-                TypeChecker.translateType(ctx.declType, className, mutableMapOf())
+                TypeChecker.translateType(declType, className, mutableMapOf())
             target.setType(targetType)
         }
         val query = visit(ctx!!.query) as Expression
@@ -281,11 +266,11 @@ class Translate : WhileBaseVisitor<ProgramElement>() {
 
     override fun visitConstruct_statement(ctx: Construct_statementContext?): ProgramElement {
         val target = visit(ctx!!.target) as Location
-        if(ctx.declType != null) {
+        ctx.declType?.let { declType ->
             val decl = getClassDecl(ctx)
-            val className = if(decl == null) ERRORTYPE.name else decl!!.className.text
+            val className = if(decl == null) ERRORTYPE.name else decl.className.text
             val targetType =
-                TypeChecker.translateType(ctx.declType, className, mutableMapOf())
+                TypeChecker.translateType(declType, className, mutableMapOf())
             target.setType(targetType)
         }
         val query = visit(ctx!!.query) as Expression
@@ -318,13 +303,14 @@ class Translate : WhileBaseVisitor<ProgramElement>() {
         val target = visit(ctx!!.target) as Location
 
         val res = mutableListOf<VarInit>()
-        if(ctx!!.varInitList() != null) {
-            for (nm in ctx!!.varInitList()!!.varInit())
+        ctx.varInitList()?.let { varInitList ->
+            for (nm in varInitList.varInit())
                 res += visit(nm) as VarInit
         }
         val def = getClassDecl(ctx as RuleContext)
-        val declares = if(ctx!!.declType == null) null else
-            TypeChecker.translateType(ctx.declType, if(def != null) def!!.className.text else ERRORTYPE.name, mutableMapOf())
+        val declares = ctx.declType?.let { declType ->
+            TypeChecker.translateType(declType, if(def != null) def!!.className.text else ERRORTYPE.name, mutableMapOf())
+        }
         return SimulationStmt(target, path,  res, ctx!!.start.line, declares)
     }
 
@@ -342,8 +328,9 @@ class Translate : WhileBaseVisitor<ProgramElement>() {
 
     override fun visitAssign_statement(ctx: Assign_statementContext?): ProgramElement {
         val def = getClassDecl(ctx as RuleContext)
-        val declares = if(ctx!!.declType == null) null else
-            TypeChecker.translateType(ctx.declType, if(def != null) def!!.className.text else ERRORTYPE.name, mutableMapOf())
+        val declares = ctx.declType?.let { declType ->
+            TypeChecker.translateType(declType, if(def != null) def!!.className.text else ERRORTYPE.name, mutableMapOf())
+        }
         return AssignStmt(visit(ctx!!.expression(0)) as Location, visit(ctx.expression(1)) as Expression, ctx!!.start.line, declares)
     }
 
