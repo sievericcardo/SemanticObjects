@@ -20,7 +20,6 @@ import org.apache.jena.graph.Node_URI
 import org.apache.jena.graph.NodeFactory
 import org.apache.jena.graph.Triple
 import org.apache.jena.graph.compose.MultiUnion
-import org.apache.jena.query.*
 import org.apache.jena.rdf.model.*
 import org.apache.jena.rdfconnection.RDFConnectionFactory
 import org.apache.jena.reasoner.Reasoner
@@ -32,9 +31,7 @@ import org.javafmi.wrapper.Simulation
 import org.semanticweb.owlapi.model.OWLOntology
 import java.net.URL
 import java.util.*
-import java.util.regex.Pattern
 import kotlin.collections.HashMap
-import kotlin.system.exitProcess
 
 
 // Settings controlling the TripleManager.
@@ -43,7 +40,7 @@ data class TripleSettings(
     val guards: HashMap<String,Boolean>, // If true, then guard clauses are used.
     var virtualization: HashMap<String,Boolean>, // If true, virtualization is used. Otherwise, naive method is used.
     var jenaReasoner: ReasonerMode, // Must be either off, rdfs or owl
-    var fusekiModel: Model? = null // If given, then this model is used instead of the FusekiGraph
+    var backgroundModel: Model? = null // If given, then this model is used instead of the FusekiGraph
 )
 
 // Class managing triples from all the different sources, how to reason over them, and how to query them using SPARQL or DL queries.
@@ -56,12 +53,19 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
         guards = hashMapOf("heap" to true, "staticTable" to true),
         virtualization = hashMapOf("heap" to true, "staticTable" to true, "fmos" to true),
         jenaReasoner = settings.reasoner,
-        fusekiModel = null
+        backgroundModel = null
     )
 
 
-    // Main method used to deliver the Jena model to run SPARQL queries on.
-    // When special settings are given, it will override the general settings
+    /**
+     * Get the Jena model including all requested sources and the requested reasoner.
+     *
+     * The model is created by merging the graphs of the requested sources.
+     *
+     * @param specialSettings: The settings to use for this model. If not given, the current settings are used.
+     * @return The Jena model
+     * @see TripleSettings
+     */
     fun getModel(specialSettings: TripleSettings = currentTripleSettings): Model {
         val model =  getModelUnionWithReasoning(specialSettings)
 
@@ -74,20 +78,39 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
         return model
     }
 
-    // Main method used to deliver an OWLAPI ontology to run OWL queries on
+
+    /**
+     * Get the OWL ontology including all requested sources and the requested reasoner.
+     *
+     * @param tripleSettings: The settings to use for this ontology. If not given, the current settings are used.
+     * @return The OWL ontology
+     * @see TripleSettings
+     */
     fun getOntology(tripleSettings: TripleSettings = currentTripleSettings): OWLOntology {
         return getOntologyFromModel(tripleSettings)
     }
 
 
-    // A variant of getOntology which excludes the heap. This is used e.g. for type checking
+    /**
+     * Get the OWL ontology including all requested sources and the requested reasoner, but excluding the heap.
+     *
+     * @return The OWL ontology
+     * @see TripleSettings
+     */
     fun getStaticDataOntology(): OWLOntology {
         val specialTripleSettings = TripleSettings(currentTripleSettings.sources, currentTripleSettings.guards, currentTripleSettings.virtualization, currentTripleSettings.jenaReasoner)
         specialTripleSettings.sources["heap"] = false
         return getOntology(specialTripleSettings)
     }
 
-    // Return an OWL ontology corresponding to the requested sources.
+
+    /**
+     * Get the OWL ontology including all requested sources and the requested reasoner.
+     *
+     * @param tripleSettings: The settings to use for this model. If not given, the current settings are used.
+     * @return The OWL ontology
+     * @see TripleSettings
+     */
     private fun getOntologyFromModel(tripleSettings: TripleSettings): OWLOntology {
         val model = getModelUnion(tripleSettings)
         if (settings.materialize) {
@@ -105,7 +128,15 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
     }
 
 
-    // Get the Jena model including all requested sources and the requested reasoner
+    /**
+     * Get the Jena model including all requested sources and the requested reasoner.
+     *
+     * The model is created by merging the graphs of the requested sources.
+     *
+     * @param tripleSettings: The settings to use for this model. If not given, the current settings are used.
+     * @return The Jena model
+     * @see TripleSettings
+     */
     private fun getModelUnionWithReasoning(tripleSettings: TripleSettings): Model {
         val modelUnion = getModelUnion(tripleSettings)
         val reasoner = getJenaReasoner(tripleSettings) ?: return modelUnion  // Get correct reasoner based on settings
@@ -113,8 +144,17 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
     }
 
 
-    // Model merging the graphs of the requested sources.
-    // Also decides whether to use virtualization or naive approach
+    /**
+     * Get the Jena model including all requested sources.
+     *
+     * The model is created by merging the graphs of the requested sources. It also decides whether to use virtualization or naive approach.
+     * THe model is a union of the graphs of the requested sources. It takes into account the virtualization settings
+     * from the static table, heap, and FMOs. It also includes the vocabulary file, the external ontology, and the URL ontology.
+     *
+     * @param tripleSettings: The settings to use for this model. If not given, the current settings are used.
+     * @return The Jena model
+     * @see TripleSettings
+     */
     private fun getModelUnion(tripleSettings: TripleSettings): Model {
         val includedGraphs = mutableListOf<Graph>()
         includedGraphs.add(ModelFactory.createDefaultModel().graph) // New default graph. New statements are inserted here.
@@ -134,13 +174,16 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
             includedGraphs.add(getVocabularyModel().graph)
         }
         if (tripleSettings.sources.getOrDefault("externalOntology", false)) {
-            includedGraphs.add(getExternalOntologyAsModel().graph)
+            if (tripleSettings.backgroundModel == null)
+                tripleSettings.backgroundModel = getExternalOntologyAsModel()
+            includedGraphs.add(tripleSettings.backgroundModel!!.graph)
         }
         if (tripleSettings.sources.getOrDefault("urlOntology", false)) {
-            if (tripleSettings.fusekiModel == null)
-                tripleSettings.fusekiModel = getTripleStoreOntologyAsModel()
-            includedGraphs.add(tripleSettings.fusekiModel!!.graph)
+            if (tripleSettings.backgroundModel == null)
+                tripleSettings.backgroundModel = getTripleStoreOntologyAsModel()
+            includedGraphs.add(tripleSettings.backgroundModel!!.graph)
         }
+
         val model = ModelFactory.createModelForGraph(MultiUnion(includedGraphs.toTypedArray()))
         for ((key, value) in prefixMap) model.setNsPrefix(key, value)  // Adding prefixes
         return model
@@ -168,11 +211,21 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
     }
 
     /**
-     * Regenerate the triple store model. We'll do so by fetching again the data
-     * This will be called when the triple store is updated, and we want to update the model.
+     * Regenerate the background model. We'll do so by fetching again the data
+     * This will be called when there's an update either file or store, and we want to update the model.
+     * We assume that either the background or the triple store is present.
      */
-    fun regenerateTripleStoreModel(): Unit {
-        currentTripleSettings.fusekiModel = getTripleStoreOntologyAsModel()
+    fun regenerateModel() {
+        // Invalidate the current model
+        currentTripleSettings.backgroundModel = null
+        // Invalidate the cache of the query on the interpreter
+        interpreter?.queryCache?.clear()
+
+        if (settings.background != "") {
+            currentTripleSettings.backgroundModel = getExternalOntologyAsModel()
+        } else {
+            currentTripleSettings.backgroundModel = getTripleStoreOntologyAsModel()
+        }
     }
 
     // Returns the Jena model containing statements from vocab.owl
@@ -188,10 +241,10 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
 
     // Get the requested Jena reasoner
     private fun getJenaReasoner(tripleSettings: TripleSettings): Reasoner? {
-        when (tripleSettings.jenaReasoner) {
-            ReasonerMode.off -> { return null }
-            ReasonerMode.owl -> { return ReasonerRegistry.getOWLReasoner() }
-            ReasonerMode.rdfs -> { return ReasonerRegistry.getRDFSReasoner() }
+        return when (tripleSettings.jenaReasoner) {
+            ReasonerMode.off -> { null }
+            ReasonerMode.owl -> { ReasonerRegistry.getOWLReasoner() }
+            ReasonerMode.rdfs -> { ReasonerRegistry.getRDFSReasoner() }
         }
     }
 
@@ -288,7 +341,7 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
             for( fmo in interpreter.simMemory ){
                 val name = fmo.key.literal
                 val simulationObject = fmo.value
-                var simulationURI = "${run}${name}"
+                val simulationURI = "${run}${name}"
 
                 addIfMatch(uriTriple(simulationURI, "${rdf}type", "${smol}Simulation"), searchTriple, matchingTriples, false)
                 addIfMatch(literalTriple(simulationURI, "${smol}loads", simulationObject.path, STRINGTYPE), searchTriple, matchingTriples, false)
@@ -296,18 +349,18 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
                 addIfMatch(literalTriple(simulationURI, "${smol}pseudoOffset", simulationObject.pseudoOffset, DOUBLETYPE), searchTriple, matchingTriples, false)
                 addIfMatch(literalTriple(simulationURI, "${smol}role", simulationObject.role, STRINGTYPE), searchTriple, matchingTriples, false)
 
-                var simulator : Simulation = simulationObject.sim
-                var modelDescription = simulator.modelDescription
-                var simulatorURI = "${simulationURI}_simulator"
-                var modelDescriptionURI = "${run}${name}_modelDescription"
+                val simulator : Simulation = simulationObject.sim
+                val modelDescription = simulator.modelDescription
+                val simulatorURI = "${simulationURI}_simulator"
+                val modelDescriptionURI = "${run}${name}_modelDescription"
 
                 addIfMatch(uriTriple(simulationURI, "${smol}simulator", simulatorURI), searchTriple, matchingTriples, false)
                 addIfMatch(uriTriple(simulatorURI, "${smol}modelDescription", modelDescriptionURI), searchTriple, matchingTriples, false)
                 addIfMatch(literalTriple(modelDescriptionURI, "${smol}generatorTool", modelDescription.generationTool, STRINGTYPE), searchTriple, matchingTriples, false)
                 addIfMatch(literalTriple(modelDescriptionURI, "${smol}modelName", modelDescription.modelName, STRINGTYPE), searchTriple, matchingTriples, false)
 
-                for (v in modelDescription.getModelVariables()) {
-                    var variableURI = "${run}${name}_var_${v.name}"
+                for (v in modelDescription.modelVariables) {
+                    val variableURI = "${run}${name}_var_${v.name}"
 
                     addIfMatch(uriTriple(modelDescriptionURI, "${smol}variable", variableURI), searchTriple, matchingTriples, false)
                     addIfMatch(literalTriple(variableURI, "${smol}variableName", v.name, STRINGTYPE), searchTriple, matchingTriples, false)
@@ -556,7 +609,7 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
             val matchingTriples: MutableList<Triple> = mutableListOf()
 
             for(obj in heap.keys){
-                if(staticTable.hiddenSet.contains(obj.tag.getPrimary().getNameString())) continue;
+                if(staticTable.hiddenSet.contains(obj.tag.getPrimary().getNameString())) continue
 
                 val subjectString = "${run}${obj.literal}"
 
@@ -666,10 +719,10 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
                         description = description.replace("\\\"","\"")
                         for(fd in heap[obj]!!.keys.filter { !it.startsWith("__") }){
                             val ll = getLiteralNode(heap[obj]!![fd]!!, settings)
-                            if(ll.isLiteral)
-                                description = description.replace("%$fd",ll.literal.toString(true).replace(settings.prefixMap()["xsd"]!!,"xsd:"))
+                            description = if(ll.isLiteral)
+                                description.replace("%$fd",ll.literal.toString(true).replace(settings.prefixMap()["xsd"]!!,"xsd:"))
                             else
-                                description = description.replace("%$fd",ll.toString())
+                                description.replace("%$fd",ll.toString())
                         }
 
                         //this instantiates blank nodes so they are stable over subqueries, should probably be moved into the translation
