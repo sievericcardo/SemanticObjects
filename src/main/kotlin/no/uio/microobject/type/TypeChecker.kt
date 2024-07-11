@@ -3,7 +3,6 @@ package no.uio.microobject.type
 import no.uio.microobject.antlr.WhileParser
 import no.uio.microobject.data.TripleManager
 import no.uio.microobject.main.Settings
-import no.uio.microobject.runtime.FieldEntry
 import no.uio.microobject.runtime.FieldInfo
 import no.uio.microobject.runtime.SimulatorObject
 import no.uio.microobject.runtime.Visibility
@@ -626,7 +625,7 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
                 if(createDecl == null)
                     log("Cannot find class $createClass", ctx)
                 else {
-                    if (createDecl!!.abs != null)
+                    if (createDecl.abs != null)
                         log("Cannot instantiate abstract class $createClass", ctx)
                     val newType: Type = newTypeFound
 
@@ -791,8 +790,8 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
             is WhileParser.Output_statementContext -> {
                 //For now, we print everything, so the important thing is just that it is not an error
                 val innerType = getType(ctx.expression(), inner, vars, thisType, inRule)
-                /*if(innerType == ERRORTYPE)
-                    log("Println statement expects a string, but parameter has type $innerType.", ctx)*/
+                if(innerType == ERRORTYPE)
+                    log("Println statement expects a string, but parameter has type $innerType.", ctx)
             }
             is WhileParser.Skip_statmentContext -> { }
             is WhileParser.Debug_statementContext -> { }
@@ -1079,25 +1078,25 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
                 return instantiateGenerics(fieldType.type, t1, primName, generics.getOrDefault(thisType.getPrimary().getNameString(), listOf()))
             }
             is WhileParser.Conversion_expressionContext -> {
-                if(eCtx!!.conversion().text == "intToString") {
+                if(eCtx.conversion().text == "intToString") {
                     val inner = getType(eCtx.expression(), fields, vars, thisType, inRule)
                     if(inner == INTTYPE) return STRINGTYPE
                     log("Expression intToString expects an integer as a parameter.",eCtx)
                     return STRINGTYPE
                 }
-                if(eCtx!!.conversion().text == "intToDouble") {
+                if(eCtx.conversion().text == "intToDouble") {
                     val inner = getType(eCtx.expression(), fields, vars, thisType, inRule)
                     if(inner == INTTYPE) return DOUBLETYPE
                     log("Expression intToDouble expects an integer as a parameter.",eCtx)
                     return DOUBLETYPE
                 }
-                if(eCtx!!.conversion().text == "doubleToInt") {
+                if(eCtx.conversion().text == "doubleToInt") {
                     val inner = getType(eCtx.expression(), fields, vars, thisType, inRule)
                     if(inner == DOUBLETYPE) return INTTYPE
                     log("Expression doubleToInt expects a double as a parameter.",eCtx)
                     return INTTYPE
                 }
-                if(eCtx!!.conversion().text == "doubleToString") {
+                if(eCtx.conversion().text == "doubleToString") {
                     val inner = getType(eCtx.expression(), fields, vars, thisType, inRule)
                     if(inner == DOUBLETYPE) return STRINGTYPE
                     log("Expression intToString expects a double as a parameter.",eCtx)
