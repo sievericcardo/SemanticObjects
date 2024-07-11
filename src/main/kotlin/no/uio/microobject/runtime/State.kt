@@ -4,6 +4,7 @@ import no.uio.microobject.ast.Expression
 import no.uio.microobject.ast.expr.LiteralExpr
 import no.uio.microobject.ast.Statement
 import no.uio.microobject.type.Type
+import org.apache.jena.query.ResultSet
 
 /*
 We use the term "heap" NOT in the sense of C and other low-level here.
@@ -14,6 +15,7 @@ typealias GlobalMemory = MutableMap<LiteralExpr, Memory>  // Maps object name li
 typealias SimulationMemory = MutableMap<LiteralExpr, SimulatorObject>  // Maps object name literals to local memories
 typealias FieldEntry = List<FieldInfo>                   //list of fields
 typealias ModelsEntry = Pair<Expression, String>      //guard expression and models string
+typealias QueryCache = MutableMap<String, ResultSet>      //query cache
 
 enum class Visibility { DEFAULT, HIDE }
 
