@@ -21,7 +21,6 @@ java {
 repositories {
     mavenCentral()
     maven { url "https://overture.au.dk/artifactory/libs-release/" }
-    maven { url "https://jitpack.io" }
 }
 
 test {
