@@ -4,6 +4,6 @@ before_install:
  - sdk install java 21.0.4-ms
  - sdk use java 21.0.4-ms
 install:
- - ./gradlew build -x test
+ - ./gradlew build -x test publishToMavenLocal
 artifacts:
  - build/libs/smol.jar

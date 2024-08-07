@@ -6,6 +6,7 @@ plugins {
     id 'scala'
 }
 
+apply plugin: 'maven-publish'
 group = 'org.smolang'
 version = '0.5'
 
