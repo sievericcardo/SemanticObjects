@@ -4,9 +4,9 @@ plugins {
     id 'antlr'
     id "kr.motd.sphinx" version "2.10.0"
     id 'scala'
+    id 'maven-publish'
 }
 
-apply plugin: 'maven-publish'
 group = 'org.smolang'
 version = '0.5'
 
@@ -60,6 +60,38 @@ dependencies {
     implementation("org.jline:jline:3.26.2")
 }
 
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'smol'
+            from components.java
+            versionMapping {
+                usage('java-api') {
+                    fromResolutionOf('runtimeClasspath')
+                }
+                usage('java-runtime') {
+                    fromResolutionResult()
+                }
+            }
+            pom {
+                name = 'smol'
+                description = 'An OO language for semantic web applications'
+                url = 'https://smolang.org'
+                licenses {
+                    license {
+                        name = 'BSD 3-Clause License'
+                        url = 'https://opensource.org/licenses/BSD-3-Clause'
+                    }
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            url = uri("file://$rootProject.layout.buildDirectory/repo")
+        }
+    }
+}
 
 generateGrammarSource {
     outputDirectory = file("build/generated-src/main/no/uio/microobject/antlr")
