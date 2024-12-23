@@ -1,10 +1,9 @@
 plugins {
-    id 'org.jetbrains.kotlin.jvm' version '1.9.23'
+    id 'org.jetbrains.kotlin.jvm' version '2.0.0'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
     id 'antlr'
     id "kr.motd.sphinx" version "2.10.0"
     id 'scala'
-    id 'maven-publish'
 }
 
 group = 'org.smolang'
@@ -36,61 +35,29 @@ sourceSets {
 }
 ext {
     jenaVersion = '3.16.0' // Ontoapi uses classes from this version that are not in new versions
-    hopliteVersion = '1.4.1'
-    antlrVersion = '4.13.1'
+    hopliteVersion = '2.9.0'
+    antlrVersion = '4.13.2'
+    sl4jVersion = '2.0.16'
 }
 dependencies {
     implementation("com.google.guava:guava:22.0") // Required with this version for HermiT and OntoAPI
     testImplementation("io.kotest:kotest-runner-junit5:5.9.1")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit")
-    testImplementation("org.apache.commons:commons-lang3:3.14.0")
+    testImplementation("org.apache.commons:commons-lang3:3.17.0")
     testImplementation("org.apache.jena:jena-fuseki-main:${jenaVersion}")
-    implementation("com.github.ajalt.clikt:clikt:4.4.0")
+    implementation("com.github.ajalt.clikt:clikt:5.0.2")
     implementation("org.antlr:antlr4:${antlrVersion}")
     antlr("org.antlr:antlr4:${antlrVersion}")
     implementation("net.sourceforge.owlapi:org.semanticweb.hermit:1.4.5.519")
-    implementation("org.slf4j:slf4j-simple:2.0.13")
+    implementation("org.slf4j:slf4j-simple:${sl4jVersion}")
     implementation("org.apache.jena:apache-jena-libs:${jenaVersion}")
     implementation("org.apache.jena:jena-core:${jenaVersion}")
     implementation("org.siani.javafmi:fmu-wrapper:2.26.5")
-    implementation("com.influxdb:influxdb-client-kotlin:7.1.0")
+    implementation("com.influxdb:influxdb-client-kotlin:7.2.0")
     implementation("com.sksamuel.hoplite:hoplite-core:${hopliteVersion}")
     implementation("com.sksamuel.hoplite:hoplite-yaml:${hopliteVersion}")
     implementation("com.github.owlcs:ontapi:2.1.0") // Later version cannot use the proper dependencies
-    implementation("org.jline:jline:3.26.2")
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            artifactId = 'smol'
-            from components.java
-            versionMapping {
-                usage('java-api') {
-                    fromResolutionOf('runtimeClasspath')
-                }
-                usage('java-runtime') {
-                    fromResolutionResult()
-                }
-            }
-            pom {
-                name = 'smol'
-                description = 'An OO language for semantic web applications'
-                url = 'https://smolang.org'
-                licenses {
-                    license {
-                        name = 'BSD 3-Clause License'
-                        url = 'https://opensource.org/licenses/BSD-3-Clause'
-                    }
-                }
-            }
-        }
-    }
-    repositories {
-        maven {
-            url = uri("file://$rootProject.layout.buildDirectory/repo")
-        }
-    }
+    implementation("org.jline:jline:3.28.0")
 }
 
 generateGrammarSource {
