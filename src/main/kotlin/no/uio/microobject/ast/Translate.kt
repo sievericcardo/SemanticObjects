@@ -150,7 +150,11 @@ class Translate : WhileBaseVisitor<ProgramElement>() {
                         }
                     }
 
-                    effectsTable[nm.NAME().text] = adapts
+                    // Store effects with class and method name
+                    if (!effectsTable.containsKey(cl.className.text)) {
+                        effectsTable[cl.className.text] = mutableMapOf()
+                    }
+                    effectsTable[cl.className.text]!![nm.NAME().text] = adapts
                 }
             }
             table[cl.className.text] = Pair(fields, res)
