@@ -30,7 +30,7 @@ data class StaticTable(
     val owldescr: MutableMap<String, String>, // This maps class names to the default models block
     val checkClassifiesTable: MutableMap<String, MutableMap<String, Pair<String, String>>> = mutableMapOf(), // Queries for classification
     val contextTable: MutableMap<String, String>,
-    val effectTable: MutableMap<String, MutableList<String>>
+    val effectTable: MutableMap<String, MutableMap<String, MutableList<String>>>
 ) {
     override fun toString(): String =
 """
