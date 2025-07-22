@@ -217,11 +217,18 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
     }
 
     private fun checkEffects() {
+        val classifiesTable = tripleManager.staticTable.checkClassifiesTable
         // Check that the expected effects are defined in the effect table
         for ((className, classMethods) in expectedEffectTable) {
             for ((method, effects) in classMethods) {
                 val methodName = method.first
                 val methodContext = method.second
+
+                val isClassified = classifiesTable.containsKey(className)
+                val isAdapted = classifiesTable.values.any { it.containsKey(className) }
+                if (isClassified || isAdapted) {
+                    log("Cannot have an adapt method for class $className that is a adaptable or reclassifiable", methodContext, Severity.ERROR)
+                }
 
                 if (!effectTable.containsKey(className) || !effectTable[className]!!.containsKey(methodName)) {
                     log("Method $className.$methodName has no effects $effects defined in the effect table", methodContext, Severity.ERROR)
