@@ -218,15 +218,19 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
 
     private fun checkEffects() {
         // Check that the expected effects are defined in the effect table
-        for ((method, effects) in expectedEffectTable) {
+        for ((className, classMethods) in expectedEffectTable) {
+            for ((method, effects) in classMethods) {
+                val methodName = method.first
+                val methodContext = method.second
 
-            if (!effectTable.containsKey(method.first)) {
-                log("Method ${method.first} has no effects $effects defined in the effect table", method.second, Severity.ERROR)
-            } else {
-                val definedEffects = effectTable[method.first]!!
-                for (effect in effects) {
-                    if (!definedEffects.contains(effect)) {
-                        log("Effect $effect is not defined for method ${method.first}", method.second, Severity.ERROR)
+                if (!effectTable.containsKey(className) || !effectTable[className]!!.containsKey(methodName)) {
+                    log("Method $className.$methodName has no effects $effects defined in the effect table", methodContext, Severity.ERROR)
+                } else {
+                    val definedEffects = effectTable[className]!![methodName]!!
+                    for (effect in effects) {
+                        if (!definedEffects.contains(effect.first)) {
+                            log("Effect ${effect.first} is not defined for method $className.$methodName", methodContext, Severity.ERROR)
+                        }
                     }
                 }
             }
@@ -540,6 +544,78 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
             } else if(superMet.paramList() != null)
                 log("Method $name is declared as overriding in $className, but a superclass has a different number of parameters.", mtCtx)
         }
+        
+        // Check effects for overriding methods
+        checkOverrideEffects(mtCtx, className, name)
+    }
+
+    private fun checkOverrideEffects(mtCtx: WhileParser.Method_defContext, className: String, methodName: String) {
+        // Get current method's effects
+        val currentEffects = effectTable[className]?.get(methodName) ?: emptyList()
+        
+        // Find super methods with the same name
+        val upwards = extends.getOrDefault(className, ERRORTYPE).getPrimary().getNameString()
+        val superMethods = getMethods(upwards).filter { it.NAME().text == methodName }
+        
+        for (superMethod in superMethods) {
+            // Find the superclass that contains this method (regardless of whether it has effects)
+            val superClassName = findClassForMethodDefinition(upwards, methodName)
+            if (superClassName != null) {
+                val superEffects = effectTable[superClassName]?.get(methodName) ?: emptyList()
+                
+                // If current method has effects but super method doesn't, that's an error
+                if (currentEffects.isNotEmpty() && superEffects.isEmpty()) {
+                    log("Overriding method $className.$methodName declares effects $currentEffects but the overridden method in $superClassName has no effects declared", mtCtx)
+                }
+                
+                // If both have effects, check constraints
+                if (superEffects.isNotEmpty()) {
+                    // Check that current method has <= effects than super method
+                    if (currentEffects.size > superEffects.size) {
+                        log("Overriding method $className.$methodName has more effects (${currentEffects.size}) than the overridden method in $superClassName (${superEffects.size})", mtCtx)
+                    }
+                    
+                    // Check that current method doesn't add new effects
+                    val newEffects = currentEffects.filter { !superEffects.contains(it) }
+                    if (newEffects.isNotEmpty()) {
+                        log("Overriding method $className.$methodName adds new effects not present in the overridden method: $newEffects", mtCtx)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun findClassForMethod(className: String, methodName: String): String? {
+        // Check if the current class has the method
+        if (effectTable[className]?.containsKey(methodName) == true) {
+            return className
+        }
+        
+        // Check superclasses
+        val superType = extends[className]
+        if (superType != null && superType != OBJECTTYPE) {
+            val superClassName = superType.getPrimary().getNameString()
+            return findClassForMethod(superClassName, methodName)
+        }
+        
+        return null
+    }
+
+    private fun findClassForMethodDefinition(className: String, methodName: String): String? {
+        // Check if the current class has the method definition (regardless of effects)
+        val classMethods = methods[className] ?: emptyList()
+        if (classMethods.any { it.NAME().text == methodName }) {
+            return className
+        }
+        
+        // Check superclasses
+        val superType = extends[className]
+        if (superType != null && superType != OBJECTTYPE) {
+            val superClassName = superType.getPrimary().getNameString()
+            return findClassForMethodDefinition(superClassName, methodName)
+        }
+        
+        return null
     }
 
     internal fun checkMet(mtCtx: WhileParser.Method_defContext, className: String) {
@@ -786,12 +862,18 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
                                   // check if the realType is a key for tripleManager.staticTable.checkClassifiesTable
                                     for (classifies in tripleManager.staticTable.checkClassifiesTable.keys) {
                                         if (realType.getPrimary().getNameString() in classifies) {
-                                            methodName?.let { it ->
+                                            methodName?.let { methodName ->
                                                 val effect = realType.getPrimary().getNameString()
-                                                if (expectedEffectTable.keys.any { key -> key.first == effect }) {
-                                                    expectedEffectTable[Pair(it, ctx)]!!.add(effect)
+                                                // Initialize class entry if not exists
+                                                if (!expectedEffectTable.containsKey(className)) {
+                                                    expectedEffectTable[className] = mutableMapOf()
+                                                }
+                                                // Initialize method entry if not exists or add to existing
+                                                val methodKey = Pair(methodName, ctx)
+                                                if (expectedEffectTable[className]!!.containsKey(methodKey)) {
+                                                    expectedEffectTable[className]!![methodKey]!!.add(Pair(effect, ""))
                                                 } else {
-                                                    expectedEffectTable[Pair(it, ctx)] = mutableListOf(effect)
+                                                    expectedEffectTable[className]!![methodKey] = mutableListOf(Pair(effect, ""))
                                                 }
                                             }
                                         }
@@ -901,12 +983,18 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
                 for (classifies in tripleManager.staticTable.checkClassifiesTable.keys) {
                     if (firstType.getPrimary().getNameString() in classifies) {
                         found = true
-                        methodName?.let {
+                        methodName?.let { methodName ->
                             val effect = firstType.getPrimary().getNameString()
-                            if (expectedEffectTable.keys.any { key -> key.first == effect }) {
-                                expectedEffectTable[Pair(it, ctx)]!!.add(effect)
+                            // Initialize class entry if not exists
+                            if (!expectedEffectTable.containsKey(className)) {
+                                expectedEffectTable[className] = mutableMapOf()
+                            }
+                            // Initialize method entry if not exists or add to existing
+                            val methodKey = Pair(methodName, ctx)
+                            if (expectedEffectTable[className]!!.containsKey(methodKey)) {
+                                expectedEffectTable[className]!![methodKey]!!.add(Pair(effect, ""))
                             } else {
-                                expectedEffectTable[Pair(it, ctx)] = mutableListOf(effect)
+                                expectedEffectTable[className]!![methodKey] = mutableListOf(Pair(effect, ""))
                             }
                         }
                     }
@@ -929,12 +1017,18 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
                 for (classifies in tripleManager.staticTable.checkClassifiesTable.keys) {
                     if (firstType.getPrimary().getNameString() in classifies) {
                         found = true
-                        methodName?.let {
+                        methodName?.let { methodName ->
                             val effect = firstType.getPrimary().getNameString()
-                            if (expectedEffectTable.keys.any { key -> key.first == effect }) {
-                                expectedEffectTable[Pair(it, ctx)]!!.add(effect)
+                            // Initialize class entry if not exists
+                            if (!expectedEffectTable.containsKey(className)) {
+                                expectedEffectTable[className] = mutableMapOf()
+                            }
+                            // Initialize method entry if not exists or add to existing
+                            val methodKey = Pair(methodName, ctx)
+                            if (expectedEffectTable[className]!!.containsKey(methodKey)) {
+                                expectedEffectTable[className]!![methodKey]!!.add(Pair(effect, ""))
                             } else {
-                                expectedEffectTable[Pair(it, ctx)] = mutableListOf(effect)
+                                expectedEffectTable[className]!![methodKey] = mutableListOf(Pair(effect, ""))
                             }
                         }
                     }
