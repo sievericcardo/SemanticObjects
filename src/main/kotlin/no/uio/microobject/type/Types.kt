@@ -1,5 +1,10 @@
 package no.uio.microobject.type
 
+// Types for the effect check
+typealias ClassName = String
+typealias MethodName = String
+typealias SuperClass = String
+
 //Internal Type Structure
 abstract class Type {
     companion object{

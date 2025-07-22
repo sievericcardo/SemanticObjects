@@ -31,6 +31,7 @@ SIMULATE : 'simulate';
 VALIDATE : 'validate';
 CLASSIFY : 'classify';
 ADAPT : 'adapt';
+ADAPTS: 'adapts';
 TICK : 'tick';
 BREAKPOINT : 'breakpoint';
 SUPER : 'super';
@@ -87,6 +88,8 @@ DOT : '.';
 SEMI : ';';
 OPARAN : '(';
 CPARAN : ')';
+OBRACE: '{';
+CBRACE: '}';
 OBRACK : '[';
 CBRACK : ']';
 COMMA : ',';
@@ -123,7 +126,7 @@ class_def : (abs=ABSTRACT)? (hidden=HIDE)? CLASS  className = NAME (LT namelist 
             (classifies_block (retrieves_block)?)?
             method_def*
             END;
-method_def :  (abs=ABSTRACT)? (builtinrule=RULE)? (domainrule=DOMAIN)? (overriding=OVERRIDE)? type NAME OPARAN paramList? CPARAN (statement END)?;
+method_def :  (abs=ABSTRACT)? (builtinrule=RULE)? (domainrule=DOMAIN)? (overriding=OVERRIDE)? type NAME OPARAN paramList? CPARAN (ADAPTS effects=namelist)? (statement END)?;
 
 models_block : MODELS owldescription=STRING SEMI                                                    #simple_models_block
              | MODELS OPARAN guard=expression CPARAN owldescription=STRING SEMI models_block        #complex_models_block

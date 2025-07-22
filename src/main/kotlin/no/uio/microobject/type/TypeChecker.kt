@@ -13,7 +13,10 @@ import org.semanticweb.owlapi.model.IRI
 import org.semanticweb.owlapi.model.OntologyConfigurator
 import java.nio.file.Files
 import java.nio.file.Paths
-
+import kotlin.collections.containsKey
+import kotlin.collections.get
+import kotlin.text.compareTo
+import kotlin.text.get
 
 /**
  *
@@ -90,6 +93,12 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
 
     //Easy access by mapping each class name to its definition
     private val recoverDef :  MutableMap<String, WhileParser.Class_defContext> = mutableMapOf()
+
+    // List of effects that we encounter during the type checking
+//    private val expectedEffectTable: MutableMap<Pair<String, ParserRuleContext>, MutableList<String>> = mutableMapOf()
+    private val expectedEffectTable: MutableMap<ClassName, MutableMap<Pair<MethodName, ParserRuleContext>, MutableList<Pair<String, SuperClass>>>> = mutableMapOf()
+    // Actual effect table
+    private val effectTable = tripleManager.staticTable.effectTable
 
 
     /**********************************************************************
@@ -187,10 +196,11 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
         for (clCtx in ctx.class_def()) checkClass(clCtx)
 
         //check main block
-        checkStatement(ctx.statement(), false, mutableMapOf(), ERRORTYPE, ERRORTYPE, ERRORTYPE.name, false)
+        checkStatement(ctx.statement(), false, mutableMapOf(), ERRORTYPE, ERRORTYPE, ERRORTYPE.name, false, null)
 
         // check types for states of the adaptation
         checkClassifiesStateMethods()
+        checkEffects()
     }
 
     private fun getMethodContext(className: String, methodName: String): ParserRuleContext? {
@@ -204,6 +214,23 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
             }
         }
         return null
+    }
+
+    private fun checkEffects() {
+        // Check that the expected effects are defined in the effect table
+        for ((method, effects) in expectedEffectTable) {
+
+            if (!effectTable.containsKey(method.first)) {
+                log("Method ${method.first} has no effects $effects defined in the effect table", method.second, Severity.ERROR)
+            } else {
+                val definedEffects = effectTable[method.first]!!
+                for (effect in effects) {
+                    if (!definedEffects.contains(effect)) {
+                        log("Effect $effect is not defined for method ${method.first}", method.second, Severity.ERROR)
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -577,7 +604,7 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
         //Check statement
         val initVars = if(mtCtx.paramList() != null) mtCtx.paramList().param()
             .associate { Pair(it.NAME().text, translateType(it.type(), className, generics)) }.toMutableMap() else mutableMapOf()
-        val ret = checkStatement(mtCtx.statement(), false, initVars, translateType(mtCtx.type(), className, generics), thisType, className, mtCtx.builtinrule != null)
+        val ret = checkStatement(mtCtx.statement(), false, initVars, translateType(mtCtx.type(), className, generics), thisType, className, mtCtx.builtinrule != null, name)
 
         if(!ret && retType != UNITTYPE) {
             log("Method ${mtCtx.NAME().text} has non-Unit return type a path without a final return statement.", mtCtx)
@@ -598,7 +625,8 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
                                metType : Type, //return type
                                thisType : Type,
                                className: String,
-                               inRule : Boolean ) : Boolean {
+                               inRule : Boolean,
+                               methodName: String?) : Boolean {
         val inner : Map<String, FieldInfo> = getFields(className)
 
         when(ctx){
@@ -606,23 +634,23 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
                 val innerType = getType(ctx.expression(), inner, vars, thisType, inRule)
                 if(innerType != ERRORTYPE && innerType != BOOLEANTYPE)
                     log("If statement expects a boolean in its guard, but parameter has type $innerType.",ctx)
-                val left = checkStatement(ctx.statement(0), finished, vars, metType, thisType, className, inRule)
-                val right = if(ctx.ELSE() != null) checkStatement(ctx.statement(1), finished, vars, metType, thisType, className, inRule) else true
+                val left = checkStatement(ctx.statement(0), finished, vars, metType, thisType, className, inRule, methodName)
+                val right = if(ctx.ELSE() != null) checkStatement(ctx.statement(1), finished, vars, metType, thisType, className, inRule, methodName) else true
                 return if(ctx.next != null){
-                    checkStatement(ctx.next,  (left && right) || finished, vars, metType, thisType, className, inRule)
+                    checkStatement(ctx.next,  (left && right) || finished, vars, metType, thisType, className, inRule, methodName)
                 } else (left && right) || finished
             }
             is WhileParser.While_statementContext -> {
                 val innerType = getType(ctx.expression(), inner, vars, thisType, inRule)
                 if(innerType != ERRORTYPE && innerType != BOOLEANTYPE)
                     log("While statement expects a boolean in its guard, but parameter has type $innerType.",ctx)
-                checkStatement(ctx.statement(0), finished, vars, metType, thisType, className, inRule)
+                checkStatement(ctx.statement(0), finished, vars, metType, thisType, className, inRule, methodName)
                 if(ctx.next != null)
-                    return checkStatement(ctx.next,  finished, vars, metType, thisType, className, inRule)
+                    return checkStatement(ctx.next,  finished, vars, metType, thisType, className, inRule, methodName)
             }
             is WhileParser.Sequence_statementContext -> {
-                val first = checkStatement(ctx.statement(0), finished, vars, metType, thisType, className, inRule)
-                return checkStatement(ctx.statement(1), first, vars, metType, thisType, className, inRule)
+                val first = checkStatement(ctx.statement(0), finished, vars, metType, thisType, className, inRule, methodName)
+                return checkStatement(ctx.statement(1), first, vars, metType, thisType, className, inRule, methodName)
             }
             is WhileParser.Assign_statementContext -> {
                 val lhsType =
@@ -754,6 +782,20 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
                                   if (targetType != ERRORTYPE && realType != ERRORTYPE && !finalType.isAssignable(realType, extends)) {
                                       log("Type $realType is not assignable to $targetType.", ctx)
                                   }
+
+                                  // check if the realType is a key for tripleManager.staticTable.checkClassifiesTable
+                                    for (classifies in tripleManager.staticTable.checkClassifiesTable.keys) {
+                                        if (realType.getPrimary().getNameString() in classifies) {
+                                            methodName?.let { it ->
+                                                val effect = realType.getPrimary().getNameString()
+                                                if (expectedEffectTable.keys.any { key -> key.first == effect }) {
+                                                    expectedEffectTable[Pair(it, ctx)]!!.add(effect)
+                                                } else {
+                                                    expectedEffectTable[Pair(it, ctx)] = mutableListOf(effect)
+                                                }
+                                            }
+                                        }
+                                    }
                               }
                               if (lhsType != null) { //result type
                                   val metRet = translateType(met.type(), otherClassName, generics) // type as declared
@@ -859,6 +901,14 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
                 for (classifies in tripleManager.staticTable.checkClassifiesTable.keys) {
                     if (firstType.getPrimary().getNameString() in classifies) {
                         found = true
+                        methodName?.let {
+                            val effect = firstType.getPrimary().getNameString()
+                            if (expectedEffectTable.keys.any { key -> key.first == effect }) {
+                                expectedEffectTable[Pair(it, ctx)]!!.add(effect)
+                            } else {
+                                expectedEffectTable[Pair(it, ctx)] = mutableListOf(effect)
+                            }
+                        }
                     }
                 }
                 if (!found && firstType != ERRORTYPE) {
@@ -879,6 +929,14 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
                 for (classifies in tripleManager.staticTable.checkClassifiesTable.keys) {
                     if (firstType.getPrimary().getNameString() in classifies) {
                         found = true
+                        methodName?.let {
+                            val effect = firstType.getPrimary().getNameString()
+                            if (expectedEffectTable.keys.any { key -> key.first == effect }) {
+                                expectedEffectTable[Pair(it, ctx)]!!.add(effect)
+                            } else {
+                                expectedEffectTable[Pair(it, ctx)] = mutableListOf(effect)
+                            }
+                        }
                     }
                 }
                 if (!found) {

@@ -22,6 +22,7 @@ class Translate : WhileBaseVisitor<ProgramElement>() {
     private val classifiesTable: MutableMap<String, Pair<String, String>> = mutableMapOf()
     private val checkClassifiesTable: MutableMap<String, MutableMap<String, Pair<String, String>>> = mutableMapOf()
     private val contextTable : MutableMap<String, String> = mutableMapOf()
+    private val effectsTable: MutableMap<ClassName, MutableMap<MethodName, MutableList<String>>> = mutableMapOf()
 
     private fun translateModels(ctx : Models_blockContext) : Pair<List<Pair<Expression, String>>, String>{
         if(ctx is Simple_models_blockContext)
@@ -141,6 +142,16 @@ class Translate : WhileBaseVisitor<ProgramElement>() {
                     val params = if (nm.paramList() != null) paramListTranslate(nm.paramList()) else listOf()
                     res[nm.NAME().text] = MethodInfo(SkipStmt(ctx!!.start.line), params, nm.builtinrule != null, nm.domainrule != null, cl.className.text, metType)
                 }
+                if(nm.ADAPTS() != null) {
+                    val adapts = mutableListOf<String>()
+                    if(nm.namelist() != null) {
+                        for (name in nm.namelist().NAME()) {
+                            adapts.add(name.text)
+                        }
+                    }
+
+                    effectsTable[nm.NAME().text] = adapts
+                }
             }
             table[cl.className.text] = Pair(fields, res)
         }
@@ -179,7 +190,7 @@ class Translate : WhileBaseVisitor<ProgramElement>() {
 
         return Pair(
                      StackEntry(visit(ctx.statement()) as Statement, mutableMapOf(), Names.getObjName("_Entry_"), Names.getStackId()),
-                     StaticTable(fieldTable, methodTable, hierarchy, modelsTable, hidden, owldescr, checkClassifiesTable, contextTable)
+                     StaticTable(fieldTable, methodTable, hierarchy, modelsTable, hidden, owldescr, checkClassifiesTable, contextTable, effectsTable)
                    )
     }
 
