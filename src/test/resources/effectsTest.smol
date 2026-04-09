@@ -1,0 +1,30 @@
+class BaseDevice (String deviceId)
+models "a ast:Device ; ast:deviceId %deviceId";
+
+    Unit processData() adapts OperationalDevice
+        // This method has effects and should be checked
+        skip;
+    end
+end
+
+class SmartDevice extends BaseDevice (String model)
+models "a ast:SmartDevice ; ast:model %model";
+
+    // This method overrides and should have <= effects
+    override Unit processData()
+        skip;
+    end
+end
+
+class AdvancedDevice extends SmartDevice (Int sensors)
+models "a ast:AdvancedDevice ; ast:sensors %sensors";
+
+    // This method violates the constraint by adding a new effect
+    override Unit processData() adapts OperationalDevice, MaintenanceDevice
+        skip;
+    end
+end
+
+main
+    skip;
+end
