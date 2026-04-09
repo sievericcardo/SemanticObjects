@@ -463,6 +463,9 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
         if(clCtx.method_def() != null)
             for( mtCtx in clCtx.method_def() ) checkMet(mtCtx, name)
 
+        //Check that base method effects cover all direct-subclass override effects
+        checkBaseMethodEffects(clCtx)
+
         //Check abstract
         if(clCtx.abs == null) {
             val leftOver = getLeftoverAbstract(clCtx)
@@ -623,6 +626,43 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
         }
         
         return null
+    }
+
+    private fun getDirectSubclasses(className: String): Set<String> {
+        return tripleManager.staticTable.hierarchy[className] ?: emptySet()
+    }
+
+    /**
+     * Check that a base method's declared effects are a superset of the effects declared
+     * in each direct subclass override. The base must declare every effect that any
+     * (direct) override declares, so that callers depending on the base type know all
+     * possible effects.
+     */
+    private fun checkBaseMethodEffects(clCtx: WhileParser.Class_defContext) {
+        val className = clCtx.className.text
+        val baseEffectsByMethod = effectTable[className] ?: return
+
+        val directSubclasses = getDirectSubclasses(className)
+        if (directSubclasses.isEmpty()) return
+
+        for (mtCtx in clCtx.method_def()) {
+            if (mtCtx.overriding != null) continue  // only check methods that ARE the base
+            val methodName = mtCtx.NAME().text
+            val baseEffects = baseEffectsByMethod[methodName] ?: continue  // no effects declared → nothing to check
+
+            for (subClass in directSubclasses) {
+                val subEffects = effectTable[subClass]?.get(methodName) ?: continue
+                val missingEffects = subEffects.filter { !baseEffects.contains(it) }
+                if (missingEffects.isNotEmpty()) {
+                    log(
+                        "Base method $className.$methodName must declare effects $missingEffects " +
+                        "because the override in $subClass declares them",
+                        mtCtx,
+                        Severity.ERROR
+                    )
+                }
+            }
+        }
     }
 
     internal fun checkMet(mtCtx: WhileParser.Method_defContext, className: String) {
