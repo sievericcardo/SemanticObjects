@@ -31,7 +31,8 @@ data class Settings(var verbose : Boolean,      //Verbosity
                     val langPrefix : String = "https://github.com/Edkamb/SemanticObjects#",
                     val extraPrefixes : HashMap<String, String>,
                     val useQueryType : Boolean = false,
-                    var reasoner : ReasonerMode = ReasonerMode.owl
+                    var reasoner : ReasonerMode = ReasonerMode.owl,
+                    val metrics : Metrics = Metrics()
                     ){
     var prefixMapCache: HashMap<String, String>? = null
     fun prefixMap() : HashMap<String, String> {
@@ -107,6 +108,7 @@ class Main : CliktCommand() {
     private val materialize  by option("--materialize", "-m",  help="Materialize triples and dump to file.").flag()
     private val queryType    by option("--useQueryType", "-q",  help="Activates the type checker for access").flag()
     private val extra        by option("--prefixes", "-p", help="Extra prefixes, given as a list -p PREFIX1=URI1 -p PREFIX2=URI2").associate()
+    private val printMetrics by option("--print-metrics", help="Print accumulated performance metrics after execution.").flag()
 
     override fun run() {
         org.apache.jena.query.ARQ.init()
@@ -160,7 +162,8 @@ class Main : CliktCommand() {
             exitProcess(-1)
         }
 
-        val repl = REPL( Settings(verbose, materialize, outdir.toString(), tripleStoreUrl, backgr, domainPrefix, extraPrefixes=HashMap(extra), useQueryType = queryType, reasoner = reasonerMode))
+        val settings = Settings(verbose, materialize, outdir.toString(), tripleStoreUrl, backgr, domainPrefix, extraPrefixes=HashMap(extra), useQueryType = queryType, reasoner = reasonerMode)
+        val repl = REPL(settings)
         if(input.isNotEmpty()){
             if(input.size == 1) repl.command("read", input[0].toString())
             if(input.size > 1) repl.command("multiread", input.joinToString(";"))
@@ -188,6 +191,7 @@ class Main : CliktCommand() {
             repl.runAndTerminate() //command("auto", "");
         }
         repl.terminate()
+        if (printMetrics) settings.metrics.print()
     }
 }
 

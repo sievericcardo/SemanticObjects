@@ -154,20 +154,27 @@ class Interpreter(
     }
 
     fun ask(str: String): Boolean {
+        val startNs = System.nanoTime()
         val qexec = createQuery(str)
-        return qexec.execAsk()
+        val result = qexec.execAsk()
+        settings.metrics.recordQuery(System.nanoTime() - startNs)
+        return result
     }
 
     // Run SPARQL query (str)
     fun query(str: String): ResultSet? {
+        val startNs = System.nanoTime()
         val qexec = createQuery(str)
-        return qexec.execSelect()
+        val result = qexec.execSelect()
+        settings.metrics.recordQuery(System.nanoTime() - startNs)
+        return result
     }
 
 
     // Run OWL query and return all instances of the described class.
     // str should be in Manchester syntax
     fun owlQuery(str: String): NodeSet<OWLNamedIndividual> {
+        val startNs = System.nanoTime()
         val out : String = settings.replaceKnownPrefixesNoColon(str.removeSurrounding("\""))
         val m = OWLManager.createOWLOntologyManager()
         val ontology = tripleManager.getOntology()
@@ -175,7 +182,9 @@ class Interpreter(
         val parser = ManchesterOWLSyntaxParserImpl(OntologyConfigurator(), m.owlDataFactory)
         parser.setDefaultOntology(ontology)
         val expr = parser.parseClassExpression(out)
-        return reasoner.getInstances(expr)
+        val result = reasoner.getInstances(expr)
+        settings.metrics.recordQuery(System.nanoTime() - startNs)
+        return result
     }
 
     // Dump all triples in the virtual model to ${settings.outdir}/file

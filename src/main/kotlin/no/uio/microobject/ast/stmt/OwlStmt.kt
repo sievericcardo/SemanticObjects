@@ -31,6 +31,7 @@ data class OwlStmt(val target : Location, val query: Expression, val pos : Int =
         }
 
         val res : NodeSet<OWLNamedIndividual> = interpreter.owlQuery(query.literal)
+        val reifStartNs = System.nanoTime()
         var list = LiteralExpr("null")
         for (r in res) {
             val name = Names.getObjName("List")
@@ -50,6 +51,7 @@ data class OwlStmt(val target : Location, val query: Expression, val pos : Int =
             interpreter.heap[name] = newMemory
             list = name
         }
+        interpreter.settings.metrics.recordReification(System.nanoTime() - reifStartNs)
         return replaceStmt(AssignStmt(target, list, declares = declares), stackFrame)
     }
 }

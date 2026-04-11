@@ -68,6 +68,7 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
     // Main method used to deliver the Jena model to run SPARQL queries on.
     // When special settings are given, it will override the general settings
     fun getModel(specialSettings: TripleSettings = currentTripleSettings): Model {
+        val startNs = System.nanoTime()
         val model =  getModelUnionWithReasoning(specialSettings)
 
         // If the materialize flag is given, then write to file
@@ -76,6 +77,7 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
             File("${settings.outdir}/output.ttl").createNewFile()
             model.write(FileWriter("${settings.outdir}/output.ttl"),"TTL")
         }
+        settings.metrics.recordKgConstruction(System.nanoTime() - startNs)
         return model
     }
 
@@ -546,6 +548,7 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
         // Returns an iterator of all triples in the heap that matches searchTriple
         // graphBaseFind only constructs/fetches the triples that match searchTriple.
         public override fun graphBaseFind(searchTriple: Triple): ExtendedIterator<Triple> {
+            val startNs = System.nanoTime()
             val useGuardClauses = false //tripleSettings.guards.getOrDefault("heap", true)
             val settings: Settings = interpreter.settings
             val heap: GlobalMemory = interpreter.heap
@@ -563,6 +566,7 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
             if (useGuardClauses) {
                 if (searchTriple.subject is Node_URI) {
                     if (searchTriple.subject.nameSpace != run && searchTriple.subject.nameSpace != domain) {
+                        interpreter.settings.metrics.recordHeapLift(System.nanoTime() - startNs)
                         return TripleListIterator( mutableListOf() )
                     }
                 }
@@ -748,6 +752,7 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
                     }
                 }
             }
+            interpreter.settings.metrics.recordHeapLift(System.nanoTime() - startNs)
             return TripleListIterator(matchingTriples)
         }
     }

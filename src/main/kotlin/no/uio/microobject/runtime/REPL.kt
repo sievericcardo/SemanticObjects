@@ -452,6 +452,13 @@ class REPL(private val settings: Settings) {
             requiresParameter = true,
             requiresFile=false
         )
+        commands["metrics"] = Command(
+            "metrics",
+            this,
+            { _ -> settings.metrics.print(); false },
+            "Prints accumulated performance metrics (KG construction, heap lifting, queries, reification)",
+            requiresFile=false
+        )
     }
 
     fun terminate() {
