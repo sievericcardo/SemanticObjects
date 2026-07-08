@@ -48,7 +48,7 @@ data class TripleSettings(
     val guards: HashMap<String,Boolean>, // If true, then guard clauses are used.
     var virtualization: HashMap<String,Boolean>, // If true, virtualization is used. Otherwise, naive method is used.
     var jenaReasoner: ReasonerMode, // Must be either off, rdfs or owl
-    var cachedModel: Model? = null // If given, then this model is used instead of the FusekiGraph
+    var cachedModel: MutableMap<String, Model>? = null // If given, then this model is used instead of the FusekiGraph
 )
 
 // Class managing triples from all the different sources, how to reason over them, and how to query them using SPARQL or DL queries.
@@ -57,7 +57,7 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
 
     // Default settings. These can be changed with REPL commands.
     var currentTripleSettings = TripleSettings(
-        sources = hashMapOf("heap" to true, "staticTable" to true, "vocabularyFile" to true, "fmos" to true, "externalOntology" to (settings.background != ""), "urlOntology" to (settings.tripleStore != "")),
+        sources = hashMapOf("heap" to true, "staticTable" to true, "vocabularyFile" to true, "fmos" to true, "externalOntology" to (settings.background != ""), "urlOntology" to (!settings.tripleStore.isEmpty())),
         guards = hashMapOf("heap" to true, "staticTable" to true),
         virtualization = hashMapOf("heap" to true, "staticTable" to true, "fmos" to true),
         jenaReasoner = settings.reasoner,
@@ -111,7 +111,6 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
         return manager.addOntology(model.graph, conf)
     }
 
-
     // Get the Jena model including all requested sources and the requested reasoner
     private fun getModelUnionWithReasoning(tripleSettings: TripleSettings): Model {
         val modelUnion = getModelUnion(tripleSettings)
@@ -119,11 +118,31 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
         return ModelFactory.createInfModel(reasoner, modelUnion)
     }
 
+    /**
+     * Returns a Jena model which is the union of the given models.
+     *
+     * The function creates a new default graph and adds the graphs of the given models to it. It also adds the prefixes from the prefixMap to the new model.
+     * The corresponding graph is a MultiUnion of the included graphs, which allows for efficient querying of the combined data.
+     *
+     * @param models A list of Jena models to be combined into a single model.
+     * @return A new Jena model that represents the union of the given models, with prefixes added.
+     */
+    private fun getModelUnionForCachedModels (models: List<Model>): Model {
+        val includedGraphs = mutableListOf<Graph>()
+        includedGraphs.add(ModelFactory.createDefaultModel().graph) // New default graph. New statements are inserted here.
+        for (model in models) {
+            includedGraphs.add(model.graph)
+        }
+        val model = ModelFactory.createModelForGraph(MultiUnion(includedGraphs.toTypedArray()))
+        for ((key, value) in prefixMap) model.setNsPrefix(key, value)  // Adding prefixes
+        return model
+    }
 
     // Model merging the graphs of the requested sources.
     // Also decides whether to use virtualization or naive approach
     private fun getModelUnion(tripleSettings: TripleSettings): Model {
         val includedGraphs = mutableListOf<Graph>()
+
         includedGraphs.add(ModelFactory.createDefaultModel().graph) // New default graph. New statements are inserted here.
         if (tripleSettings.sources.getOrDefault("staticTable", false)) {
             if (tripleSettings.virtualization.getOrDefault("staticTable", false)) { includedGraphs.add(StaticTableGraph(tripleSettings)) }
@@ -141,14 +160,20 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
             includedGraphs.add(getVocabularyModel().graph)
         }
         if (tripleSettings.sources.getOrDefault("externalOntology", false)) {
-            if (tripleSettings.cachedModel == null)
-                tripleSettings.cachedModel = getExternalOntologyAsModel()
-            includedGraphs.add(tripleSettings.cachedModel!!.graph)
+            if (tripleSettings.cachedModel == null) {
+                tripleSettings.cachedModel = mutableMapOf()
+                tripleSettings.cachedModel?.put("externalOntology", getExternalOntologyAsModel())
+                }
+            includedGraphs.add(getModelUnionForCachedModels(listOf(tripleSettings.cachedModel!!["externalOntology"]!!)).graph)
         }
         if (tripleSettings.sources.getOrDefault("urlOntology", false)) {
-            if (tripleSettings.cachedModel == null)
-                tripleSettings.cachedModel = getTripleStoreOntologyAsModel()
-            includedGraphs.add(tripleSettings.cachedModel!!.graph)
+            if (tripleSettings.cachedModel == null) {
+                tripleSettings.cachedModel = mutableMapOf()
+                for (endpoint in settings.tripleStore) {
+                    tripleSettings.cachedModel!![endpoint] = getTripleStoreOntologyAsModel(endpoint)
+                }
+            }
+            includedGraphs.add(getModelUnionForCachedModels(tripleSettings.cachedModel!!.values.toList()).graph)
         }
         val model = ModelFactory.createModelForGraph(MultiUnion(includedGraphs.toTypedArray()))
         for ((key, value) in prefixMap) model.setNsPrefix(key, value)  // Adding prefixes
@@ -169,11 +194,13 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
         return model
     }
 
-    private fun getTripleStoreOntologyAsModel(): Model {
+    private fun getTripleStoreOntologyAsModel(endpoint: String): Model {
         // Test case only
         if (testModel != null) return testModel as Model
         // Normal behaviour with a Fuseki environment
-        return RDFConnectionFactory.connect(settings.tripleStore + "/query").queryConstruct("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }")
+        // Note: `endpoint` already contains the full query service path (e.g. .../policies/query),
+        // so we must NOT append "/query" again here.
+        return RDFConnectionFactory.connect(endpoint).queryConstruct("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }")
 //        return RDFConnectionFactory.connect(settings.tripleStore + "/data").fetch()
     }
 
@@ -182,13 +209,11 @@ class TripleManager(private val settings: Settings, val staticTable: StaticTable
      * This will be called when there's an update either file or store, and we want to update the model.
      * We assume that either the background or the triple store is present.
      */
-    fun regenerateTripleStoreModel(): Unit {
-        currentTripleSettings.cachedModel = null
-
+    fun regenerateTripleStoreModel(endpoint: String): Unit {
         if (settings.background != "") {
-            currentTripleSettings.cachedModel = getExternalOntologyAsModel()
-        } else if (settings.tripleStore != "") {
-            currentTripleSettings.cachedModel = getTripleStoreOntologyAsModel()
+            currentTripleSettings.cachedModel?.set("externalOntology", getExternalOntologyAsModel())
+        } else if (!settings.tripleStore.isEmpty()) {
+            currentTripleSettings.cachedModel?.set(endpoint, getTripleStoreOntologyAsModel(endpoint))
         }
     }
 

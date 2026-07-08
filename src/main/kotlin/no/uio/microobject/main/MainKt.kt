@@ -23,7 +23,7 @@ enum class ReasonerMode {
 data class Settings(var verbose : Boolean,      //Verbosity
                     val materialize : Boolean,  //Materialize
                     var outdir : String,        //path of temporary outputs
-                    val tripleStore : String,   // url for the triple store database
+                    val tripleStore : List<String>,   // url for the triple store database
                     val background : String,    //owl background knowledge
                     val domainPrefix : String,  //prefix used in the domain model (domain:)
                     val progPrefix : String = "https://github.com/Edkamb/SemanticObjects/Program#",    //prefix for the program (prog:)
@@ -32,7 +32,8 @@ data class Settings(var verbose : Boolean,      //Verbosity
                     val extraPrefixes : HashMap<String, String>,
                     val useQueryType : Boolean = false,
                     var reasoner : ReasonerMode = ReasonerMode.owl,
-                    val metrics : Metrics = Metrics()
+                    val metrics : Metrics = Metrics(),
+                    val features: MutableMap<String, Boolean> = mutableMapOf()
                     ){
     var prefixMapCache: HashMap<String, String>? = null
     fun prefixMap() : HashMap<String, String> {
@@ -98,7 +99,7 @@ class Main : CliktCommand() {
     ).default("repl")
 
     private val reasoner by option("--jenaReasoner", "-j", help="Set value of the internally used reasoner to 'off', 'rdfs', or 'owl' (default -> 'owl')").default("owl")
-    private val tripleStore by option("--sparqlEndpoint", "-s",  help="url for SPARQL endpoint")
+    private val tripleStore by option("--sparqlEndpoint", "-s",  help="url for SPARQL endpoint").multiple()
     private val back         by option("--back",      "-b",  help="path to a file containing OWL class definitions as background knowledge.").path()
     private val domainPrefix by option("--domain",    "-d",  help="prefix for domain:.").default("https://github.com/Edkamb/SemanticObjects/ontologies/default#")
     private val input        by option("--input",     "-i",  help="path to a .smol file which is loaded on startup.").path().multiple()
@@ -109,6 +110,7 @@ class Main : CliktCommand() {
     private val queryType    by option("--useQueryType", "-q",  help="Activates the type checker for access").flag()
     private val extra        by option("--prefixes", "-p", help="Extra prefixes, given as a list -p PREFIX1=URI1 -p PREFIX2=URI2").associate()
     private val printMetrics by option("--print-metrics", help="Print accumulated performance metrics after execution.").flag()
+    private val features     by option("--features", "-f", help="Features to enable, given as a list -f FEATURE1=true -f FEATURE2=false").associate()
 
     override fun run() {
         org.apache.jena.query.ARQ.init()
@@ -116,34 +118,36 @@ class Main : CliktCommand() {
         //check that background knowledge exists
         var backgr = ""
         if(back != null){
-            assert(tripleStore == null)
+            assert(tripleStore.isEmpty())
             val file = File(back.toString())
             if(file.exists()){
                 backgr = file.readText()
             }else println("Could not find file for background knowledge: ${file.path}")
         }
 
-        var tripleStoreUrl = ""
-        if (tripleStore != null){
+        val tripleStoreUrl = mutableListOf<String>()
+        if (tripleStore.isNotEmpty()) {
             assert(back == null)
 
-            val url = tripleStore.toString() + "/query"
+            for (store in tripleStore) {
+                val url = "$store/query"
 
-            // We check if the connection exists by querying the triple store for a single element
-            // If the query fails, we exit the program. There might be a more elegant way of doing it
-            val conn = RDFConnectionFactory.connect(url)
+                // We check if the connection exists by querying the triple store for a single element
+                // If the query fails, we exit the program. There might be a more elegant way of doing it
+                val conn = RDFConnectionFactory.connect(url)
 
-            val query = QueryFactory.create("SELECT * WHERE { ?s ?p ?o } LIMIT 1")
-            val qexec = conn.query(query)
-            val result: ResultSet = qexec.execSelect()
+                val query = QueryFactory.create("SELECT * WHERE { ?s ?p ?o } LIMIT 1")
+                val qexec = conn.query(query)
+                val result: ResultSet = qexec.execSelect()
 
-            // check that we retrieved something
-            if (!result.hasNext()) {
-                println("Error: the url for the triple store is not valid.")
-                exitProcess(-1)
-            } else {
-                tripleStoreUrl = tripleStore.toString()
-                conn.close()
+                // check that we retrieved something
+                if (!result.hasNext()) {
+                    println("Error: the url for the triple store is not valid.")
+                    exitProcess(-1)
+                } else {
+                    tripleStoreUrl.add(url)
+                    conn.close()
+                }
             }
         }
 
