@@ -86,9 +86,11 @@ data class AccessStmt(val target : Location, val query: Expression, val params :
                         newMemory["content"] = LiteralExpr(found.split("^^")[0], INTTYPE)
                     else if(objNameCand.matches("\\d+.\\d+".toRegex())) newMemory["content"] =
                         LiteralExpr(found, DOUBLETYPE)
-                    else if (objNameCand.matches("(true|false)".toRegex()) || objNameCand.matches("(true|false)\\^\\^http://www.w3.org/2001/XMLSchema#boolean".toRegex())) {
+                    else if (objNameCand.matches("(true|false)".toRegex()) || objNameCand.matches("(true|false)\\^\\^http://www.w3.org/2001/XMLSchema#boolean".toRegex()))
                         newMemory["content"] = if (objNameCand.split("^^")[0] == "true") TRUEEXPR else FALSEEXPR
-                    }
+                    // Handle date time
+                    else if (objNameCand.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z".toRegex()) || objNameCand.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z".toRegex()) || objNameCand.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\\^\\^http://www.w3.org/2001/XMLSchema#dateTime".toRegex()) || objNameCand.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z\\^\\^http://www.w3.org/2001/XMLSchema#dateTime".toRegex()))
+                        newMemory["content"] = LiteralExpr(found.split("^^")[0], DATETIMETYPE)
                     else throw Exception("Query returned unknown object/literal: $found")
                 }
                 newMemory["next"] = list

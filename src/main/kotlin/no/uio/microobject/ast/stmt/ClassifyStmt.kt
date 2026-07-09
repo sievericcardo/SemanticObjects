@@ -291,6 +291,9 @@ data class ClassifyStmt(val target: Location, val contextObject: Expression, val
                     else if (objNameCand == "true" || objNameCand == "false") LiteralExpr(found, BOOLEANTYPE)
                     else if (objNameCand.matches("(true|false)".toRegex()) || objNameCand.matches("(true|false)\\^\\^http://www.w3.org/2001/XMLSchema#boolean".toRegex()))
                         LiteralExpr(found.split("^^")[0], BOOLEANTYPE)
+                    // Handle date time
+                    else if (objNameCand.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z".toRegex()) || objNameCand.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z".toRegex()) || objNameCand.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\\^\\^http://www.w3.org/2001/XMLSchema#dateTime".toRegex()) || objNameCand.matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z\\^\\^http://www.w3.org/2001/XMLSchema#dateTime".toRegex()))
+                        LiteralExpr("\"" + objNameCand.split("^^")[0] + "\"", DATETIMETYPE)
                     else throw Exception("Query returned unknown object/literal: $found")
                 } else {
                     LiteralExpr(varObj.toString(), BaseType(varObj.toString()))

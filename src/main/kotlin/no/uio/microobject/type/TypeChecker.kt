@@ -71,10 +71,10 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
     }
 
     //Known classes
-    private val classes : MutableSet<String> = mutableSetOf("Int", "Boolean", "Unit", "String", "Object", "Double")
+    private val classes : MutableSet<String> = mutableSetOf("Int", "Boolean", "Unit", "String", "Object", "Double", "DateTime")
 
     //Type hierarchy. Null is handled as a special case during the analysis itself.
-    private val extends : MutableMap<String, Type> = mutableMapOf(Pair("Double", OBJECTTYPE), Pair("Int", OBJECTTYPE), Pair("Boolean", OBJECTTYPE), Pair("Unit", OBJECTTYPE), Pair("String", OBJECTTYPE))
+    private val extends : MutableMap<String, Type> = mutableMapOf(Pair("Double", OBJECTTYPE), Pair("Int", OBJECTTYPE), Pair("Boolean", OBJECTTYPE), Pair("Unit", OBJECTTYPE), Pair("String", OBJECTTYPE), Pair("DateTime", OBJECTTYPE))
 
     //List of declared generic type names per class
     private val generics : MutableMap<String, List<String>> = mutableMapOf()
@@ -1523,6 +1523,12 @@ class TypeChecker(private val ctx: WhileParser.ProgramContext, private val setti
                     val inner = getType(eCtx.expression(), fields, vars, thisType, inRule)
                     if(inner == BOOLEANTYPE) return STRINGTYPE
                     log("Expression booleanToString expects a boolean as a parameter.",eCtx)
+                    return STRINGTYPE
+                }
+                if(eCtx.conversion().text == "dateTimeToString") {
+                    val inner = getType(eCtx.expression(), fields, vars, thisType, inRule)
+                    if(inner == DATETIMETYPE) return STRINGTYPE
+                    log("Expression dateTimeToString expects a dateTime as a parameter.",eCtx)
                     return STRINGTYPE
                 }
                 log("Unknown conversion.",eCtx)

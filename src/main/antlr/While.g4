@@ -82,6 +82,7 @@ DOUBLETOSTRING : 'doubleToString';
 BOOLEANTOSTRING: 'booleanToString';
 INTTODOUBLE : 'intToDouble';
 DOUBLETOINT : 'doubleToInt';
+DATETIMETOSTRING : 'dateTimeToString';
 
 //Keywords: others
 DOT : '.';
@@ -113,6 +114,23 @@ NAME : LET LOD*;
 // "x-1" and not only "x - 1", add a negation unary operator '-'.
 INTEGER :  '0' | '-'? [1-9] DIG*;
 FLOAT : INTEGER? '.' DIG+ EXPONENT? ;
+
+// For DateTime we cannot use repetitions of numbers defined as digits for the length of numbers
+// as it is not compatible with ANTLR4, so we define the digits as fragments and use them in the main rule.
+fragment DIGIT : [0-9];
+fragment D2 : DIGIT DIGIT;
+fragment D4 : DIGIT DIGIT DIGIT DIGIT;
+
+DATETIME
+    : D4 '-' D2 '-' D2
+      'T'
+      D2 ':' D2 ':' D2
+      ('.' DIGIT+)?
+      (
+          'Z'
+        | ('+' | '-') D2 ':' D2
+      )?
+    ;
 
 namelist : NAME (COMMA NAME)*;
 
@@ -171,6 +189,7 @@ expression :      THIS                           # this_expression
                 | FALSE                          # false_expression
                 | STRING                         # string_expression
                 | FLOAT                          # double_expression
+                | DATETIME                       # datetime_expression
                 | NULL                           # null_expression
                 | UNIT                           # unit_expression
                 | conversion OPARAN expression CPARAN # conversion_expression
@@ -209,4 +228,4 @@ fieldDeclInit : (hidden=HIDE | domain=DOMAIN)? type NAME ASS expression SEMI;
 fieldDeclInitList : fieldDeclInit fieldDeclInit*;
 varInit : NAME ASS expression;
 varInitList : varInit (COMMA varInit)*;
-conversion: INTTOSTRING | DOUBLETOSTRING | BOOLEANTOSTRING | INTTODOUBLE | DOUBLETOINT;
+conversion: INTTOSTRING | DOUBLETOSTRING | BOOLEANTOSTRING | INTTODOUBLE | DOUBLETOINT | DATETIMETOSTRING ;

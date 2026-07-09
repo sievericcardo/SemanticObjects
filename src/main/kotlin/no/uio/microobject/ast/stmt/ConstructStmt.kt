@@ -76,6 +76,15 @@ data class ConstructStmt(val target : Location, val query: Expression, val param
                                     .matches("(true|false)\\^\\^http://www.w3.org/2001/XMLSchema#boolean".toRegex())
                                 || extractedName.matches("(true|false)\\^\\^http://www.w3.org/2001/XMLSchema#boolean".toRegex())) {
                                 newObjMemory[f.name] = if (extractedName.split("^^")[0] == "true") TRUEEXPR else FALSEEXPR
+                            } else if (r.get(f.name).toString().removePrefix(interpreter.settings.runPrefix)
+                                    .matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z".toRegex())
+                                || r.get(f.name).toString().removePrefix(interpreter.settings.runPrefix)
+                                    .matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z".toRegex())
+                                || r.get(f.name).toString().removePrefix(interpreter.settings.runPrefix)
+                                    .matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z\\^\\^http://www.w3.org/2001/XMLSchema#dateTime".toRegex())
+                                || r.get(f.name).toString().removePrefix(interpreter.settings.runPrefix)
+                                    .matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z\\^\\^http://www.w3.org/2001/XMLSchema#dateTime".toRegex())) {
+                                newObjMemory[f.name] = LiteralExpr(extractedName.split("^^")[0], DATETIMETYPE)
                             }
                             else if(f.type == STRINGTYPE)
                                 newObjMemory[f.name] = LiteralExpr("\""+extractedName+"\"", f.type)
