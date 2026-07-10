@@ -1,0 +1,518 @@
+class SotwModel extends ODRLModel()
+    Unit adaptAddDataSubject()
+        List<DataSubject> dss = construct("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?id
+WHERE {
+    ?ds a odrl:DataSubject ;
+        pol:identifier ?id .
+    FILTER NOT EXISTS {
+        ?obj a prog:DataSubject ;
+            prog:DataSubject_id ?id .
+    }
+}
+        ");
+
+        if dss != null then
+            print("RECONFIG> New Data Subject(s) detected: repairing the model");
+
+            while dss != null do
+                DataSubject newDataSubject = dss.content;
+                
+                List<DataSubject> lx = dss;
+                dss = dss.next;
+                print("RECONFIG> New data subject detected: ");
+                print("          Data Subject Id: " ++ newDataSubject.id);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Data Subject(s) added");
+        end
+    end
+
+    Unit adaptAddDataController()
+        List<DataController> dcs = construct("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?id
+WHERE {
+    ?dc a odrl:DataController ;
+        pol:identifier ?id .
+    FILTER NOT EXISTS {
+        ?obj a prog:DataController ;
+            prog:DataController_id ?id .
+    }
+}
+        ");
+
+        if dcs != null then
+            print("RECONFIG> New Data Controller(s) detected: repairing the model");
+
+            while dcs != null do
+                DataController newDataController = dcs.content;
+                
+                List<DataController> lx = dcs;
+                dcs = dcs.next;
+                print("RECONFIG> New data controller detected: ");
+                print("          Data Controller Id: " ++ newDataController.id);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Data Controller(s) added");
+        end
+    end
+
+    Unit adaptAddAction()
+        List<Action> actions = construct("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+
+SELECT ?type
+WHERE {
+    ?action a odrl:Action ;
+        odrl:label ?type .
+    FILTER NOT EXISTS {
+        ?obj a prog:Action ;
+            prog:Action_type ?type .
+    }
+}
+        ");
+
+        if actions != null then
+            print("RECONFIG> New Action(s) detected: repairing the model");
+
+            while actions != null do
+                Action newAction = actions.content;
+                
+                List<Action> lx = actions;
+                actions = actions.next;
+                print("RECONFIG> New action detected: ");
+                print("          Action Type: " ++ newAction.type);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Action(s) added");
+        end
+    end
+
+    Unit adaptAddConstraint()
+        List<Constraint> constraints = construct("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?id ?leftOperand ?operator ?rightOperands
+WHERE {
+    ?constraint a odrl:Constraint ;
+        pol:identifier ?id ;
+        odrl:leftOperand ?leftOperand ;
+        odrl:operator ?operator ;
+        odrl:rightOperand ?rightOperand .
+    ?rightOperands a prog:ConstraintOperand ;
+        prog:ConstraintOperand_id ?rightOperand ;
+    FILTER NOT EXISTS {
+        ?obj a prog:Constraint ;
+            prog:Constraint_id ?id .
+    }
+}
+        ");
+
+        if constraints != null then
+            print("RECONFIG> New Constraint(s) detected: repairing the model");
+
+            while constraints != null do
+                Constraint newConstraint = constraints.content;
+                
+                List<Constraint> lx = constraints;
+                constraints = constraints.next;
+                print("RECONFIG> New constraint detected: ");
+                print("          Constraint Id: " ++ newConstraint.id);
+
+                newConstraint.setRightOperands();
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Constraint(s) added");
+        end
+    end
+
+    Unit adaptAddAsset()
+        List<Asset> assets = construct("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?id ?attributeName
+WHERE {
+    ?asset a odrl:Asset ;
+        pol:identifier ?id ;
+        odrl:label ?attributeName .
+    FILTER NOT EXISTS {
+        ?obj a prog:Asset ;
+            prog:Asset_id ?id .
+    }
+}
+        ");
+
+        if assets != null then
+            print("RECONFIG> New Asset(s) detected: repairing the model");
+
+            while assets != null do
+                Asset newAsset = assets.content;
+                
+                List<Asset> lx = assets;
+                assets = assets.next;
+                print("RECONFIG> New asset detected: ");
+                print("          Asset Id: " ++ newAsset.id);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Asset(s) added");
+        end
+    end
+
+    Unit adaptAddAssetCollection()
+        List<AssetCollection> acs = construct("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?id
+WHERE {
+    ?ac a odrl:AssetCollection ;
+        pol:identifier ?id .
+    FILTER NOT EXISTS {
+        ?obj a prog:AssetCollection ;
+            prog:AssetCollection_id ?id .
+    }
+}
+        ");
+
+        if acs != null then
+            print("RECONFIG> New Asset Collection(s) detected: repairing the model");
+
+            while acs != null do
+                AssetCollection newAssetCollection = acs.content;
+                
+                List<AssetCollection> lx = acs;
+                acs = acs.next;
+                print("RECONFIG> New asset collection detected: ");
+                print("          Asset Collection Id: " ++ newAssetCollection.id);
+
+                newAssetCollection.setAssets();
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Asset Collection(s) added");
+        end
+    end
+
+    Unit adaptAddSotw()
+        List<Sotw> sotws = construct("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+PREFIX dct: <http://purl.org/dc/terms/>
+
+SELECT ?id ?timestamp
+WHERE {
+    ?sotw a pol:Sotw ;
+        pol:identifier ?id ;
+        pol:timestamp ?ts .
+    ?ts dct:issued ?timestamp .
+    FILTER NOT EXISTS {
+        ?obj a prog:Sotw ;
+            prog:Sotw_timestamp ?timestamp .
+    }
+}
+        ");
+
+        if sotws != null then
+            print("RECONFIG> New Sotw(s) detected: repairing the model");
+
+            while sotws != null do
+                Sotw newSotw = sotws.content;
+                
+                List<Sotw> lx = sotws;
+                sotws = sotws.next;
+                print("RECONFIG> New sotw detected: ");
+                print("          Sotw Id: " ++ newSotw.id);
+
+                newSotw.setAssetCollections();
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Sotw(s) added");
+        end
+    end
+
+    override Unit adaptAddition()
+        print("RECONFIG> Adapting addition of Policies for ODRL");
+        this.adaptAddDataSubject();
+        this.adaptAddDataController();
+        this.adaptAddAction();
+        this.adaptAddConstraint();
+        this.adaptAddAsset();
+        this.adaptAddAssetCollection();
+        this.adaptAddSotw();
+        print("RECONFIG> Adapting addition of Policies DONE for ODRL");
+    end
+
+    Unit adaptRemoveDataSubject()
+        List<DataSubject> dss = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?obj a prog:DataSubject ;
+        prog:DataSubject_id ?id .
+    FILTER NOT EXISTS {
+        ?ds a odrl:DataSubject ;
+            pol:identifier ?id .
+    }
+}
+        ");
+
+        if dss != null then
+            print("RECONFIG> Misconfigured Data Subject(s) detected: repairing the model");
+            while dss != null do
+                DataSubject wrongDataSubject = dss.content;
+                List<DataSubject> lx = dss;
+                dss = dss.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured data subject to remove: ");
+                print("          Data Subject Id: " ++ wrongDataSubject.id);
+
+                destroy(wrongDataSubject);
+            end
+
+
+            print("RECONFIG> Data Subject(s) removed");
+        end
+    end
+
+    Unit adaptRemoveDataController()
+        List<DataController> dcs = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?obj a prog:DataController ;
+        prog:DataController_id ?id .
+    FILTER NOT EXISTS {
+        ?dc a odrl:DataController ;
+            pol:identifier ?id .
+    }
+}
+        ");
+
+        if dcs != null then
+            print("RECONFIG> Misconfigured Data Controller(s) detected: repairing the model");
+            while dcs != null do
+                DataController wrongDataController = dcs.content;
+                List<DataController> lx = dcs;
+                dcs = dcs.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured data controller to remove: ");
+                print("          Data Controller Id: " ++ wrongDataController.id);
+
+                destroy(wrongDataController);
+            end
+            print("RECONFIG> Data Controller(s) removed");
+        end
+    end
+
+    Unit adaptRemoveAction()
+        List<Action> actions = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+
+SELECT ?obj
+WHERE {
+    ?obj a prog:Action ;
+        prog:Action_type ?type .
+    FILTER NOT EXISTS {
+        ?action a odrl:Action ;
+            odrl:label ?type .
+    }
+}
+        ");
+
+        if actions != null then
+            print("RECONFIG> Misconfigured Action(s) detected: repairing the model");
+            while actions != null do
+                Action wrongAction = actions.content;
+                List<Action> lx = actions;
+                actions = actions.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured action to remove: ");
+                print("          Action Type: " ++ wrongAction.type);
+
+                destroy(wrongAction);
+            end
+            print("RECONFIG> Action(s) removed");
+        end
+    end
+
+    Unit adaptRemoveConstraint()
+        List<Constraint> constraints = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?obj a prog:Constraint ;
+        prog:Constraint_id ?id .
+    FILTER NOT EXISTS {
+        ?con a odrl:Constraint ;
+            pol:identifier ?id .
+    }
+}
+        ");
+
+        if constraints != null then
+            print("RECONFIG> Misconfigured Constraint(s) detected: repairing the model");
+            while constraints != null do
+                Constraint wrongConstraint = constraints.content;
+                List<Constraint> lx = constraints;
+                constraints = constraints.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured constraint to remove: ");
+                print("          Constraint Id: " ++ wrongConstraint.id);
+
+                destroy(wrongConstraint);
+            end
+            print("RECONFIG> Constraint(s) removed");
+        end
+    end
+
+    Unit adaptRemoveAsset()
+        List<Asset> assets = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?obj a prog:Asset ;
+        prog:Asset_id ?id .
+    FILTER NOT EXISTS {
+        ?asset a odrl:Asset ;
+            pol:identifier ?id .
+    }
+}
+        ");
+
+        if assets != null then
+            print("RECONFIG> Misconfigured Asset(s) detected: repairing the model");
+            while assets != null do
+                Asset wrongAsset = assets.content;
+                List<Asset> lx = assets;
+                assets = assets.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured asset to remove: ");
+                print("          Asset Id: " ++ wrongAsset.id);
+
+                destroy(wrongAsset);
+            end
+            print("RECONFIG> Asset(s) removed");
+        end
+    end
+
+    Unit adaptRemoveAssetCollection()
+        List<AssetCollection> acs = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?obj a prog:AssetCollection ;
+        prog:AssetCollection_id ?id .
+    FILTER NOT EXISTS {
+        ?ac a odrl:AssetCollection ;
+            pol:identifier ?id .
+    }
+}
+        ");
+
+        if acs != null then
+            print("RECONFIG> Misconfigured Asset Collection(s) detected: repairing the model");
+            while acs != null do
+                AssetCollection wrongAssetCollection = acs.content;
+                List<AssetCollection> lx = acs;
+                acs = acs.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured asset collection to remove: ");
+                print("          Asset Collection Id: " ++ wrongAssetCollection.id);
+
+                destroy(wrongAssetCollection);
+            end
+            print("RECONFIG> Asset Collection(s) removed");
+        end
+    end
+
+    Unit adaptRemoveSotw()
+        List<Sotw> sotws = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+PREFIX dct: <http://purl.org/dc/terms/>
+
+SELECT ?obj
+WHERE {
+    ?obj a prog:Sotw ;
+        prog:Sotw_id ?id .
+    FILTER NOT EXISTS {
+        ?sotw a pol:Sotw ;
+            pol:identifier ?id .
+    }
+}
+        ");
+
+        if sotws != null then
+            print("RECONFIG> Misconfigured Sotw(s) detected: repairing the model");
+            while sotws != null do
+                Sotw wrongSotw = sotws.content;
+                List<Sotw> lx = sotws;
+                sotws = sotws.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured sotw to remove: ");
+                print("          Sotw Id: " ++ wrongSotw.id);
+
+                destroy(wrongSotw);
+            end
+            print("RECONFIG> Sotw(s) removed");
+        end
+    end
+
+    override Unit adaptRemoval()
+        print("RECONFIG> Adapting removal of Policies for ODRL");
+        this.adaptRemoveDataSubject();
+        this.adaptRemoveDataController();
+        this.adaptRemoveAction();
+        this.adaptRemoveConstraint();
+        this.adaptRemoveAsset();
+        this.adaptRemoveAssetCollection();
+        this.adaptRemoveSotw();
+        print("RECONFIG> Adapting removal of Policies DONE for ODRL");
+    end
+
+    override Unit adaptDefect()
+        skip;
+    end
+
+    override Unit adaptBehaviour()
+        skip;
+    end
+end

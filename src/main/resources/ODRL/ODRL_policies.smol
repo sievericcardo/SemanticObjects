@@ -1,0 +1,201 @@
+class PolicyModel extends ODRLModel()
+    Unit adaptAddPermissions()
+        List<PolicyPermission> permissions = construct("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?id ?dc ?ac
+WHERE {
+    ?perm a odrl:Permission ;
+        pol:identifier ?id ;
+        odrl:assignee ?assignee ;
+        odrl:target ?ordlAssetCollection .
+
+    ?ordlAssetCollection a odrl:AssetCollection ;
+        pol:identifier ?assetId .
+    ?ac a prog:AssetCollection ;
+        prog:AssetCollection_id ?assetId .
+
+    ?assignee a odrl:DataController ;
+        pol:identifier ?dcId .
+    ?dc a prog:DataController ;
+        prog:DataController_id ?dcId .
+    FILTER NOT EXISTS {
+        ?obj a prog:Permission ;
+            prog:Permission_id ?id ;
+    }
+}
+        ");
+
+        if permissions != null then
+            print("RECONFIG> New Permission(s) detected: repairing the model");
+
+            while permissions != null do
+                PolicyPermission newPermission = permissions.content;
+                
+                List<PolicyPermission> lx = permissions;
+                permissions = permissions.next;
+                print("RECONFIG> New permission detected: ");
+                print("          Permission Id: " ++ newPermission.id);
+
+                newPermission.setConstraints();
+                newPermission.setActions();
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Permission(s) added");
+        end
+    end
+
+    Unit adaptAddPolicy()
+        List<Policy> pols = construct("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?id ?ds
+WHERE {
+    ?policy a odrl:Policy ;
+        pol:identifier ?id ;
+        odrl:assigner ?assigner .
+    ?assigner a odrl:DataSubject ;
+        pol:identifier ?dsId .
+    ?ds a prog:DataSubject ;
+        prog:DataSubject_id ?dsId .
+    FILTER NOT EXISTS {
+        ?obj a prog:Policy ;
+            prog:Policy_id ?id .
+    }
+}
+        ");
+
+        if pols != null then
+            print("RECONFIG> New Policy(s) detected: repairing the model");
+
+            while pols != null do
+                Policy newPolicy = pols.content;
+                
+                List<Policy> lx = pols;
+                pols = pols.next;
+                print("RECONFIG> New policy detected: ");
+                print("          Policy Id: " ++ newPolicy.id);
+
+                newPolicy.setPermissions();
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Policy(s) added");
+        end
+    end
+
+    override Unit adaptAddition()
+        print("RECONFIG> Adapting addition of Policies for ODRL");
+        this.adaptAddPermissions();
+        this.adaptAddPolicy();
+        print("RECONFIG> Adapting addition of Policies DONE for ODRL");
+    end
+
+    Unit adaptRemovePermissions()
+        List<PolicyPermission> permissions = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?obj a prog:PolicyPermission ;
+        prog:PolicyPermission_id ?id .
+    FILTER NOT EXISTS {
+        ?perm a odrl:Permission ;
+            pol:identifier ?id .
+    }
+}
+        ");
+
+        if permissions != null then
+            print("RECONFIG> Misconfigured Permission(s) detected: repairing the model");
+            while permissions != null do
+                PolicyPermission wrongPermission = permissions.content;
+                List<PolicyPermission> lx = permissions;
+                permissions = permissions.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured permission to remove: ");
+                print("          Permission Id: " ++ wrongPermission.id);
+
+                destroy(wrongPermission);
+            end
+            print("RECONFIG> Permission(s) removed");
+        end
+    end
+
+    Unit adaptRemovePolicy()
+        List<Policy> pols = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?obj a prog:Policy ;
+        prog:Policy_id ?id .
+    FILTER NOT EXISTS {
+        ?policy a odrl:Policy ;
+            pol:identifier ?id .
+    }
+}
+        ");
+
+        if pols != null then
+            print("RECONFIG> Misconfigured Policy(s) detected: repairing the model");
+            while pols != null do
+                Policy wrongPolicy = pols.content;
+                List<Policy> lx = pols;
+                pols = pols.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured policy to remove: ");
+                print("          Policy Id: " ++ wrongPolicy.id);
+
+                destroy(wrongPolicy);
+            end
+            print("RECONFIG> Policy(s) removed");
+        end
+    end
+
+    override Unit adaptRemoval()
+        print("RECONFIG> Adapting removal of Policies for ODRL");
+        this.adaptRemovePermissions();
+        this.adaptRemovePolicy();
+        print("RECONFIG> Adapting removal of Policies DONE for ODRL");
+    end
+
+    Unit adaptDefectDataSubject()
+        skip;
+    end
+
+    Unit adaptDefectDataController()
+        skip;
+    end
+
+    Unit adaptDefectPermissions()
+        skip;
+    end
+
+    Unit adaptDefectPolicy()
+        skip;
+    end
+
+    override Unit adaptDefect()
+        print("RECONFIG> Adapting defect of Policies for ODRL");
+        // this.adaptDefectDataSubject();
+        // this.adaptDefectDataController();
+        // this.adaptDefectPermissions();
+        // this.adaptDefectPolicy();
+        print("RECONFIG> Adapting defect of Policies DONE for ODRL");
+    end
+
+    override Unit adaptBehaviour()
+        print("RECONFIG> Adapting behaviour of Policies for ODRL");
+        print("RECONFIG> Adapting behaviour of Policies DONE for ODRL");
+    end
+end

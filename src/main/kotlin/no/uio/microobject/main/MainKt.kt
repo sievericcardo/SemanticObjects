@@ -166,8 +166,11 @@ class Main : CliktCommand() {
             exitProcess(-1)
         }
 
-        val settings = Settings(verbose, materialize, outdir.toString(), tripleStoreUrl, backgr, domainPrefix, extraPrefixes=HashMap(extra), useQueryType = queryType, reasoner = reasonerMode)
+        val settings = Settings(verbose, materialize, outdir.toString(), tripleStoreUrl, backgr, domainPrefix, extraPrefixes=HashMap(extra), useQueryType = queryType, reasoner = reasonerMode, features = features.mapValues { it.value.lowercase() == "true" }.toMutableMap())
         val repl = REPL(settings)
+        if (input.isEmpty() && settings.features["odrl"] == true) {
+            repl.bootstrapOdr()
+        }
         if(input.isNotEmpty()){
             if(input.size == 1) repl.command("read", input[0].toString())
             if(input.size > 1) repl.command("multiread", input.joinToString(";"))

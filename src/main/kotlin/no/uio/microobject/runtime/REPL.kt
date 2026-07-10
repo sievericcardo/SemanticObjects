@@ -10,6 +10,7 @@ import no.uio.microobject.antlr.WhileLexer
 import no.uio.microobject.antlr.WhileParser
 import no.uio.microobject.ast.Expression
 import no.uio.microobject.ast.Translate
+import no.uio.microobject.ast.appendStmt
 import no.uio.microobject.ast.expr.LiteralExpr
 import no.uio.microobject.data.TripleManager
 import no.uio.microobject.main.ReasonerMode
@@ -43,6 +44,38 @@ class Command(
 class REPL(private val settings: Settings) {
     public var interpreter: Interpreter? = null
     private val commands: MutableMap<String, Command> = mutableMapOf()
+
+    companion object {
+        private val odrlFiles = listOf(
+            "ODRL/ODRL_data.smol",
+            "ODRL/ODRL_sotw.smol",
+            "ODRL/ODRL_requests.smol",
+            "ODRL/ODRL_policies.smol",
+            "ODRL/ODRL.smol"
+        )
+
+        private val odrlInitStatements = """
+  ODRLAssetModel assetModel = new ODRLAssetModel(null);
+  PolicyModel policies = new PolicyModel("Policies");
+  RequestModel requests = new RequestModel("Requests");
+  SotwModel sotw = new SotwModel("Sotw");
+  assetModel.register(policies);
+  assetModel.register(requests);
+  assetModel.register(sotw);
+  assetModel.reconfigure();
+  assetModel.reclassify();
+        """.trimIndent()
+
+        fun loadOdrlClassSources(classLoader: ClassLoader): String = buildString {
+            for (odrlFile in odrlFiles) {
+                val resource = classLoader.getResource(odrlFile)
+                    ?: throw Exception("ODRL resource not found: $odrlFile")
+                append(resource.readText())
+                append('\n')
+            }
+        }
+
+    }
 
     init{
         initCommands()
@@ -94,18 +127,60 @@ class REPL(private val settings: Settings) {
         while (!interpreter!!.stack.empty() && interpreter!!.makeStep());
     }
 
+    fun bootstrapOdr() {
+        if (settings.features["odrl"] != true || interpreter != null) return
+
+        val classLoader = this::class.java.classLoader
+        val stdLib = classLoader.getResource("StdLib.smol").readText()
+        val odrlSources = loadOdrlClassSources(classLoader)
+
+        // Full program: ODRL class defs + init in main block + StdLib
+        val fullProgram = "$odrlSources\nmain\n$odrlInitStatements\nend\n"
+        val lexer = WhileLexer(CharStreams.fromString(fullProgram + "\n\n" + stdLib))
+        val tokens = CommonTokenStream(lexer)
+        val parser = WhileParser(tokens)
+        val tree = parser.program()
+        val visitor = Translate()
+        val pair = visitor.generateStatic(tree)
+
+        val initGlobalStore: GlobalMemory = mutableMapOf(Pair(pair.first.obj, mutableMapOf()))
+        val initStack = Stack<StackEntry>()
+        initStack.push(pair.first)
+
+        interpreter = Interpreter(
+            initStack,
+            initGlobalStore,
+            mutableMapOf(),
+            pair.second,
+            settings
+        )
+
+        while (interpreter!!.makeStep());
+    }
+
     fun printRepl(str: String) {
         println("MO-out> $str \n")
     }
 
     private fun initInterpreter(paths: List<String>) {
-        val stdLib = this::class.java.classLoader.getResource("StdLib.smol").readText()
+        val classLoader = this::class.java.classLoader
+        val stdLib = classLoader.getResource("StdLib.smol").readText()
         if(paths.any { !File(it).exists() }) {
             println("The following files: ${paths.filter { !File(it).exists() }.joinToString(", ")}")
             throw Exception("input .smol file not found")
         }
-        val programs =  paths.map { File(it).readText(Charsets.UTF_8) }
-        val program = programs.joinToString ( "\n" )
+        val programs = paths.map { File(it).readText(Charsets.UTF_8) }.toMutableList()
+
+        val odrlEnabled = settings.features["odrl"] == true
+
+        // When ODRL is enabled, append ODRL class definitions after the user's program.
+        // The grammar allows class_def* after 'main ... end', so this is a single valid
+        // parse and inheritance is propagated correctly by generateStatic.
+        if (odrlEnabled) {
+            programs.add(loadOdrlClassSources(classLoader))
+        }
+
+        val program = programs.joinToString("\n")
         val lexer = WhileLexer(CharStreams.fromString(program + "\n\n" + stdLib ))
         val tokens = CommonTokenStream(lexer)
         val parser = WhileParser(tokens)
@@ -122,7 +197,23 @@ class REPL(private val settings: Settings) {
         val initGlobalStore: GlobalMemory = mutableMapOf(Pair(pair.first.obj, mutableMapOf()))
 
         val initStack = Stack<StackEntry>()
-        initStack.push(pair.first)
+        var mainEntry = pair.first
+        if (odrlEnabled) {
+            // Parse just the ODRL init statements and prepend them to the user's main.
+            val odrlInitProgram = "main\n$odrlInitStatements\nend"
+            val odrlLexer = WhileLexer(CharStreams.fromString(odrlInitProgram))
+            val odrlTokens = CommonTokenStream(odrlLexer)
+            val odrlParser = WhileParser(odrlTokens)
+            val odrlTree = odrlParser.program()
+            val odrlEntry = Translate().generateStatic(odrlTree).first
+            mainEntry = StackEntry(
+                appendStmt(odrlEntry.active, pair.first.active),
+                pair.first.store,
+                pair.first.obj,
+                pair.first.id
+            )
+        }
+        initStack.push(mainEntry)
         interpreter = Interpreter(
             initStack,
             initGlobalStore,
