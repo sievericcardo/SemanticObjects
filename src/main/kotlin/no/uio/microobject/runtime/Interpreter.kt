@@ -170,6 +170,66 @@ class Interpreter(
         return result
     }
 
+    fun odrlQuery(userId: String, subjectId: String, actionType: String, purposeName: String, attributes: List<String>): Pair<Boolean, Double> {
+        val startNs = System.nanoTime()
+        val qexec =
+            if (attributes.isEmpty()) {
+                """
+                SELECT ?permission
+                WHERE {
+                    ?permission a prog:RequestPermission ;
+                                prog:RequestPermission_dc ?dc ;
+                                prog:RequestPermission_ds ?ds ;
+                                prog:RequestPermission_action ?action ;
+                                prog:RequestPermission_constraints ?constrains .
+                    ?dc a prog:DataController ;
+                        prog:DataController_id "$userId" .
+                    ?ds a prog:DataSubject ;
+                        prog:DataSubject_id "$subjectId" .
+                    ?action a prog:Action ;
+                        prog:Action_type "$actionType" .
+                    ?constrains a prog:Constraint ;
+                        prog:Constraint_rightOperands ?operands .
+                    ?operands a prog:RightOperands ;
+                        prog:RightOperands_name "$purposeName" .
+                }
+                """.trimIndent()
+            } else {
+                val filterValues = attributes.joinToString(", ") { "\"$it\"" }
+                val attrCount = attributes.toSet().size
+                """
+                SELECT ?permission
+                WHERE {
+                    ?permission a prog:RequestPermission ;
+                                prog:RequestPermission_dc ?dc ;
+                                prog:RequestPermission_ds ?ds ;
+                                prog:RequestPermission_action ?action ;
+                                prog:RequestPermission_constraints ?constrains .
+                    ?permission prog:RequestPermission_asset/(prog:List_next)*/prog:List_content ?asset .
+                    ?asset a prog:Asset ;
+                           prog:Asset_attributeName ?attrName .
+                    FILTER (?attrName IN ($filterValues))
+                    ?dc a prog:DataController ;
+                        prog:DataController_id "$userId" .
+                    ?ds a prog:DataSubject ;
+                        prog:DataSubject_id "$subjectId" .
+                    ?action a prog:Action ;
+                        prog:Action_type "$actionType" .
+                    ?constrains a prog:Constraint ;
+                        prog:Constraint_rightOperands ?operands .
+                    ?operands a prog:RightOperands ;
+                        prog:RightOperands_name "$purposeName" .
+                }
+                GROUP BY ?permission
+                HAVING (COUNT(DISTINCT ?attrName) = $attrCount)
+                """.trimIndent()
+            }
+        val result = ask(qexec)
+        val endNs = System.nanoTime()
+        settings.metrics.recordQuery(endNs - startNs)
+        return Pair(result, (endNs - startNs).toDouble() / 1_000_000.0)
+    }
+
 
     // Run OWL query and return all instances of the described class.
     // str should be in Manchester syntax
