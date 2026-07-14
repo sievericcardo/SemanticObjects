@@ -100,20 +100,49 @@ WHERE {
         end
     end
 
+    Unit adaptAddOperand ()
+        List<Operand> purposes = construct("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?id
+WHERE {
+    ?purpose a odrl:Purpose ;
+        pol:identifier ?id .
+    FILTER NOT EXISTS {
+        ?obj a prog:Operand ;
+            prog:Operand_id ?id .
+    }
+}
+        ");
+
+        if purposes != null then
+            print("RECONFIG> New Operand(s) detected: repairing the model");
+
+            while purposes != null do
+                Operand newOperand = purposes.content;
+
+                List<Operand> lx = purposes;
+                purposes = purposes.next;
+                print("RECONFIG> New purpose detected: ");
+                print("          Operand Id: " ++ newOperand.id);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Operand(s) added");
+        end
+    end
+
     Unit adaptAddConstraint()
         List<Constraint> constraints = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
 PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
-SELECT ?id ?leftOperand ?operator ?rightOperands
+SELECT ?id
 WHERE {
     ?constraint a odrl:Constraint ;
-        pol:identifier ?id ;
-        odrl:leftOperand ?leftOperand ;
-        odrl:operator ?operator ;
-        odrl:rightOperand ?rightOperand .
-    ?rightOperands a prog:ConstraintOperand ;
-        prog:ConstraintOperand_id ?rightOperand ;
+        pol:identifier ?id .
     FILTER NOT EXISTS {
         ?obj a prog:Constraint ;
             prog:Constraint_id ?id .
@@ -126,7 +155,7 @@ WHERE {
 
             while constraints != null do
                 Constraint newConstraint = constraints.content;
-                
+
                 List<Constraint> lx = constraints;
                 constraints = constraints.next;
                 print("RECONFIG> New constraint detected: ");
@@ -163,7 +192,7 @@ WHERE {
 
             while assets != null do
                 Asset newAsset = assets.content;
-                
+
                 List<Asset> lx = assets;
                 assets = assets.next;
                 print("RECONFIG> New asset detected: ");
@@ -197,7 +226,7 @@ WHERE {
 
             while acs != null do
                 AssetCollection newAssetCollection = acs.content;
-                
+
                 List<AssetCollection> lx = acs;
                 acs = acs.next;
                 print("RECONFIG> New asset collection detected: ");
@@ -236,7 +265,7 @@ WHERE {
 
             while sotws != null do
                 Sotw newSotw = sotws.content;
-                
+
                 List<Sotw> lx = sotws;
                 sotws = sotws.next;
                 print("RECONFIG> New sotw detected: ");
@@ -256,6 +285,7 @@ WHERE {
         this.adaptAddDataSubject();
         this.adaptAddDataController();
         this.adaptAddAction();
+        this.adaptAddOperand();
         this.adaptAddConstraint();
         this.adaptAddAsset();
         this.adaptAddAssetCollection();
@@ -360,6 +390,39 @@ WHERE {
                 destroy(wrongAction);
             end
             print("RECONFIG> Action(s) removed");
+        end
+    end
+
+    Unit adaptRemoveOperand()
+        List<Operand> purposes = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?obj a prog:Operand ;
+        prog:Operand_id ?id .
+    FILTER NOT EXISTS {
+        ?purpose a odrl:Purpose ;
+            pol:identifier ?id .
+    }
+}
+        ");
+
+        if purposes != null then
+            print("RECONFIG> Misconfigured Operand(s) detected: repairing the model");
+            while purposes != null do
+                Operand wrongOperand = purposes.content;
+                List<Operand> lx = purposes;
+                purposes = purposes.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured purpose to remove: ");
+                print("          Operand Id: " ++ wrongOperand.id);
+
+                destroy(wrongOperand);
+            end
+            print("RECONFIG> Operand(s) removed");
         end
     end
 
@@ -501,6 +564,7 @@ WHERE {
         this.adaptRemoveDataSubject();
         this.adaptRemoveDataController();
         this.adaptRemoveAction();
+        this.adaptRemoveOperand();
         this.adaptRemoveConstraint();
         this.adaptRemoveAsset();
         this.adaptRemoveAssetCollection();

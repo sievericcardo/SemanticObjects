@@ -167,10 +167,14 @@ class Action (String type) end
 
 class Request (String id, Permission permission) end
 
+// class Constraint (
+//     String id,
+//     String leftOperand,
+//     String operator,
+//     List<Operand> rightOperands
+// )
 class Constraint (
     String id,
-    String leftOperand,
-    String operator,
     List<Operand> rightOperands
 )
     Unit setRightOperands()
@@ -183,7 +187,7 @@ WHERE {
     ?constraint a odrl:Constraint ;
         pol:identifier %1 ;
         odrl:rightOperand ?odrlRightOperand .
-    ?odrlRightOperand a odrl:RightOperand ;
+    ?odrlRightOperand a odrl:Purpose ;
         pol:identifier ?rightOperandId .
     ?obj a prog:Operand ;
         prog:Operand_id ?rightOperandId .
@@ -196,7 +200,7 @@ WHERE {
 
             while operands != null do
                 Operand newOperand = operands.content;
-                
+
                 List<Operand> lx = operands;
                 operands = operands.next;
                 print("RECONFIG> New operand detected: ");
@@ -212,7 +216,7 @@ class Operand(String id, String name) end
 
 abstract class ConstraintOperand(String id) end
 
-class Purpose extends ConstraintOperand(String id) end
+class Purpose extends ConstraintOperand() end
 
 class Asset (String id, String attributeName) end
 
@@ -241,7 +245,7 @@ WHERE {
 
             while assets != null do
                 Asset newAsset = assets.content;
-                
+
                 List<Asset> lx = assets;
                 assets = assets.next;
                 print("RECONFIG> New asset detected: ");
@@ -278,7 +282,7 @@ WHERE {
 
             while acs != null do
                 AssetCollection newAssetCollection = acs.content;
-                
+
                 List<AssetCollection> lx = acs;
                 acs = acs.next;
                 print("RECONFIG> New asset collection detected: ");
@@ -287,5 +291,4 @@ WHERE {
 
             print("RECONFIG> Asset Collection(s) added");
         end
-    end
 end
