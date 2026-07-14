@@ -218,8 +218,8 @@ class Interpreter(
                                 prog:Action_type ?actionTypeId .
                             ?constrains a prog:Constraint ;
                                         prog:Constraint_rightOperands ?operands .
-                            ?operands a prog:RightOperands ;
-                                prog:RightOperands_id ?purposeValue .
+                            ?operands a prog:RightOperand ;
+                                prog:RightOperand_id ?purposeValue .
                             FILTER(STR(?dcId) = "$userId")
                             FILTER(STR(?dsId) = "$subjectId")
                             FILTER(STR(?actionTypeId) = "$actionType")
