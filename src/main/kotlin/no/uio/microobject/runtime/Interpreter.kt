@@ -170,7 +170,7 @@ class Interpreter(
         return result
     }
 
-    fun odrlQuery(userId: String, subjectId: String, actionType: String, purposeName: String, attributes: List<String>): Pair<Boolean, Double> {
+    fun odrlQuery(userId: String, subjectId: String, actionType: String, purposeId: String, attributes: List<String>): Pair<Boolean, Double> {
         val startNs = System.nanoTime()
         val qexec =
             if (attributes.isEmpty()) {
@@ -191,7 +191,7 @@ class Interpreter(
                     ?constrains a prog:Constraint ;
                         prog:Constraint_rightOperands ?operands .
                     ?operands a prog:RightOperands ;
-                        prog:RightOperands_name "$purposeName" .
+                        prog:RightOperands_id "$purposeId" .
                 }
                 """.trimIndent()
             } else {
@@ -218,7 +218,7 @@ class Interpreter(
                     ?constrains a prog:Constraint ;
                         prog:Constraint_rightOperands ?operands .
                     ?operands a prog:RightOperands ;
-                        prog:RightOperands_name "$purposeName" .
+                        prog:RightOperands_id "$purposeId" .
                 }
                 GROUP BY ?permission
                 HAVING (COUNT(DISTINCT ?attrName) = $attrCount)
