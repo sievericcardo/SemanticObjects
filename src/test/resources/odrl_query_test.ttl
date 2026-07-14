@@ -1,0 +1,37 @@
+@prefix prog: <https://github.com/Edkamb/SemanticObjects/Program#> .
+@prefix ex: <http://example.org/odrl-test#> .
+
+ex:permission1 a prog:RequestPermission ;
+    prog:RequestPermission_dc ex:dc1 ;
+    prog:RequestPermission_ds ex:ds1 ;
+    prog:RequestPermission_action ex:action1 ;
+    prog:RequestPermission_constraints ex:constraint1 ;
+    prog:RequestPermission_asset ex:list1 .
+
+ex:dc1 a prog:DataController ;
+    prog:DataController_id "dc-1" .
+
+ex:ds1 a prog:DataSubject ;
+    prog:DataSubject_id "ds-1" .
+
+ex:action1 a prog:Action ;
+    prog:Action_type "read" .
+
+ex:constraint1 a prog:Constraint ;
+    prog:Constraint_rightOperands ex:rightOperands1 .
+
+ex:rightOperands1 a prog:RightOperands ;
+    prog:RightOperands_id "purpose-1" .
+
+ex:list1 a prog:List ;
+    prog:List_content ex:asset1 ;
+    prog:List_next ex:list2 .
+
+ex:list2 a prog:List ;
+    prog:List_content ex:asset2 .
+
+ex:asset1 a prog:Asset ;
+    prog:Asset_attributeName "email" .
+
+ex:asset2 a prog:Asset ;
+    prog:Asset_attributeName "name" .

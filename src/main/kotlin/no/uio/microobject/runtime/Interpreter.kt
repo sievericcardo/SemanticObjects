@@ -172,59 +172,74 @@ class Interpreter(
 
     fun odrlQuery(userId: String, subjectId: String, actionType: String, purposeId: String, attributes: List<String>): Pair<Boolean, Double> {
         val startNs = System.nanoTime()
-        val qexec =
+        val queryStr =
             if (attributes.isEmpty()) {
                 """
-                SELECT ?permission
-                WHERE {
+                ASK WHERE {
                     ?permission a prog:RequestPermission ;
                                 prog:RequestPermission_dc ?dc ;
                                 prog:RequestPermission_ds ?ds ;
                                 prog:RequestPermission_action ?action ;
                                 prog:RequestPermission_constraints ?constrains .
                     ?dc a prog:DataController ;
-                        prog:DataController_id "$userId" .
+                        prog:DataController_id ?dcId .
                     ?ds a prog:DataSubject ;
-                        prog:DataSubject_id "$subjectId" .
+                        prog:DataSubject_id ?dsId .
                     ?action a prog:Action ;
-                        prog:Action_type "$actionType" .
+                        prog:Action_type ?actionTypeId .
                     ?constrains a prog:Constraint ;
                         prog:Constraint_rightOperands ?operands .
                     ?operands a prog:RightOperands ;
-                        prog:RightOperands_id "$purposeId" .
+                        prog:RightOperands_id ?purposeValue .
+                    FILTER(STR(?dcId) = "$userId")
+                    FILTER(STR(?dsId) = "$subjectId")
+                    FILTER(STR(?actionTypeId) = "$actionType")
+                    FILTER(STR(?purposeValue) = "$purposeId")
                 }
                 """.trimIndent()
             } else {
-                val filterValues = attributes.joinToString(", ") { "\"$it\"" }
+                val uniqueAttrs = attributes.toSet()
+                val filterValues = uniqueAttrs.joinToString(" ") { "\"$it\"" }
                 val attrCount = attributes.toSet().size
                 """
-                SELECT ?permission
-                WHERE {
-                    ?permission a prog:RequestPermission ;
-                                prog:RequestPermission_dc ?dc ;
-                                prog:RequestPermission_ds ?ds ;
-                                prog:RequestPermission_action ?action ;
-                                prog:RequestPermission_constraints ?constrains .
-                    ?permission prog:RequestPermission_asset/(prog:List_next)*/prog:List_content ?asset .
-                    ?asset a prog:Asset ;
-                           prog:Asset_attributeName ?attrName .
-                    FILTER (?attrName IN ($filterValues))
-                    ?dc a prog:DataController ;
-                        prog:DataController_id "$userId" .
-                    ?ds a prog:DataSubject ;
-                        prog:DataSubject_id "$subjectId" .
-                    ?action a prog:Action ;
-                        prog:Action_type "$actionType" .
-                    ?constrains a prog:Constraint ;
-                        prog:Constraint_rightOperands ?operands .
-                    ?operands a prog:RightOperands ;
-                        prog:RightOperands_id "$purposeId" .
+                ASK WHERE {
+                    {
+                        SELECT ?permission WHERE {
+                            ?permission a prog:RequestPermission ;
+                                        prog:RequestPermission_dc ?dc ;
+                                        prog:RequestPermission_ds ?ds ;
+                                        prog:RequestPermission_action ?action ;
+                                        prog:RequestPermission_constraints ?constrains .
+                            ?dc a prog:DataController ;
+                                prog:DataController_id ?dcId .
+                            ?ds a prog:DataSubject ;
+                                prog:DataSubject_id ?dsId .
+                            ?action a prog:Action ;
+                                prog:Action_type ?actionTypeId .
+                            ?constrains a prog:Constraint ;
+                                        prog:Constraint_rightOperands ?operands .
+                            ?operands a prog:RightOperands ;
+                                prog:RightOperands_id ?purposeValue .
+                            FILTER(STR(?dcId) = "$userId")
+                            FILTER(STR(?dsId) = "$subjectId")
+                            FILTER(STR(?actionTypeId) = "$actionType")
+                            FILTER(STR(?purposeValue) = "$purposeId")
+
+                            VALUES ?wantedAttr { $filterValues }
+                            ?permission prog:RequestPermission_asset/(prog:List_next)*/prog:List_content ?asset .
+                            ?asset a prog:Asset ;
+                                   prog:Asset_attributeName ?attrName .
+                            FILTER(STR(?attrName) = STR(?wantedAttr))
+                        }
+                        GROUP BY ?permission
+                        HAVING (COUNT(DISTINCT ?wantedAttr) = $attrCount)
+                    }
                 }
-                GROUP BY ?permission
-                HAVING (COUNT(DISTINCT ?attrName) = $attrCount)
                 """.trimIndent()
             }
-        val result = ask(qexec)
+
+        val result = ask(queryStr)
+
         val endNs = System.nanoTime()
         settings.metrics.recordQuery(endNs - startNs)
         return Pair(result, (endNs - startNs).toDouble() / 1_000_000.0)

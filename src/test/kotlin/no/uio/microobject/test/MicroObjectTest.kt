@@ -23,6 +23,7 @@ import org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS
 open class MicroObjectTest : StringSpec() {
     protected enum class StringLoad {STMT, CLASS, PRG, PATH, RES}
     private val IS_FUSEKI_DOCKER = System.getenv("FUSEKI_DOCKER") == "true"
+    private val fusekiEndpoint = System.getenv("FUSEKI_ENDPOINT")
     private val adaptationTests = System.getenv("ADAPTATION_TESTS") ?: "false"
 
     val fmuNeedsWindows: (TestCase) -> Enabled = {
@@ -47,12 +48,46 @@ open class MicroObjectTest : StringSpec() {
         else Enabled.disabled("Adaptation tests are disabled.")
     }
 
-    private var settings = Settings(false, false,  "/tmp/mo","","","urn:", extraPrefixes = hashMapOf())
-    private var tripleStoreSettings = Settings(false, false,  "/tmp/mo","http://localhost:3030/ds","","urn:", extraPrefixes = hashMapOf())
+    private var settings = Settings(
+        verbose = false,
+        materialize = false,
+        outdir = "/tmp/mo",
+        tripleStore = listOf(),
+        background = "",
+        domainPrefix = "",
+        runPrefix = "urn:",
+        extraPrefixes = hashMapOf()
+    )
+    private var tripleStoreSettings = Settings(
+        verbose = false,
+        materialize = false,
+        outdir = "/tmp/mo",
+        tripleStore = listOf(normalizedFusekiEndpoint()),
+        background = "",
+        domainPrefix = "",
+        runPrefix = "urn:",
+        extraPrefixes = hashMapOf()
+    )
+
+    private fun normalizedFusekiEndpoint(): String {
+        val endpoint = fusekiEndpoint?.trim()
+        if (endpoint.isNullOrEmpty()) return "http://localhost:3030/ds/query"
+        return if (endpoint.endsWith("/query")) endpoint else "$endpoint/query"
+    }
+
     protected fun loadBackground(path : String, domainPrefix : String = ""){
         val file = File(path)
         val backgr = file.readText()
-        settings = Settings(false, false,  "/tmp/mo","",backgr,domainPrefix,"urn:", extraPrefixes = hashMapOf())
+        settings = Settings(
+            verbose = false,
+            materialize = false,
+            outdir = "/tmp/mo",
+            tripleStore = listOf(),
+            background = backgr,
+            domainPrefix = domainPrefix,
+            runPrefix = "urn:",
+            extraPrefixes = hashMapOf()
+        )
     }
     private fun loadString(program : String) : WhileParser.ProgramContext{
         val stdLib = this::class.java.classLoader.getResource("StdLib.smol").readText() + "\n\n"
@@ -200,7 +235,17 @@ open class MicroObjectTest : StringSpec() {
         val visitor = Translate()
         val pair = visitor.generateStatic(ast)
 
-        val settings = Settings(false, true, "/tmp/mo","","","urn:", extraPrefixes = hashMapOf(), useQueryType = true)
+        val settings = Settings(
+            verbose = false,
+            materialize = true,
+            outdir = "/tmp/mo",
+            tripleStore = listOf(),
+            background = "",
+            domainPrefix = "",
+            runPrefix = "urn:",
+            extraPrefixes = hashMapOf(),
+            useQueryType = true
+        )
         val tripleManager = TripleManager(settings, pair.second, null)
 
         val tC = TypeChecker(ast, settings, tripleManager)
