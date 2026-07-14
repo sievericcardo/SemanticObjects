@@ -87,7 +87,7 @@ WHERE {
         end
     end
 
-    Unit setConstraints()
+    Unit setPolicyConstraints()
         List<Constraint> cons = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
 PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
@@ -111,7 +111,42 @@ WHERE {
 
             while cons != null do
                 Constraint newConstraint = cons.content;
-                
+
+                List<Constraint> lx = cons;
+                cons = cons.next;
+                print("RECONFIG> New constraint detected: ");
+                print("          Constraint Id: " ++ newConstraint.id);
+            end
+
+            print("RECONFIG> Constraint(s) for Permission added");
+        end
+    end
+
+    Unit setRequestConstraints()
+        List<Constraint> cons = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?perm a odrl:Permission ;
+        pol:identifier %1 ;
+        <https://w3id.org/force/sotw#context> ?odrlConstraint .
+    ?odrlConstraint a odrl:Constraint ;
+        pol:identifier ?constraintId .
+    ?obj a prog:Constraint ;
+        prog:Constraint_id ?constraintId .
+}
+        ", this.id);
+
+        if cons != null then
+            print("RECONFIG> New Constraint(s) for Permission detected: repairing the model");
+
+            this.constraints = cons;
+
+            while cons != null do
+                Constraint newConstraint = cons.content;
+
                 List<Constraint> lx = cons;
                 cons = cons.next;
                 print("RECONFIG> New constraint detected: ");
@@ -150,7 +185,7 @@ WHERE {
 
             while assets != null do
                 Asset newAsset = assets.content;
-                
+
                 List<Asset> lx = assets;
                 assets = assets.next;
                 print("RECONFIG> New asset detected: ");

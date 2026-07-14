@@ -32,13 +32,13 @@ WHERE {
 
             while permissions != null do
                 PolicyPermission newPermission = permissions.content;
-                
+
                 List<PolicyPermission> lx = permissions;
                 permissions = permissions.next;
                 print("RECONFIG> New permission detected: ");
                 print("          Permission Id: " ++ newPermission.id);
 
-                newPermission.setConstraints();
+                newPermission.setPolicyConstraints();
                 newPermission.setActions();
 
                 destroy(lx);
@@ -74,7 +74,7 @@ WHERE {
 
             while pols != null do
                 Policy newPolicy = pols.content;
-                
+
                 List<Policy> lx = pols;
                 pols = pols.next;
                 print("RECONFIG> New policy detected: ");
