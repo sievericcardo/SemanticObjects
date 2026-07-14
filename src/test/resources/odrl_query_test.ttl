@@ -1,60 +1,37 @@
-@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
-@prefix dct: <http://purl.org/dc/terms/> .
-@prefix dpv: <https://w3id.org/dpv#> .
-@prefix pol: <http://www.smolang.org/greenhouseDT-policy#> .
-@prefix ast: <http://www.smolang.org/greenhouseDT#> .
+@prefix prog: <https://github.com/Edkamb/SemanticObjects/Program#> .
 @prefix ex: <http://example.org/odrl-test#> .
 
-pol:WateringPurpose a odrl:Purpose ;
-    pol:identifier "urn:uuid:watering-purpose" ;
-    pol:purposeName "Watering" .
+ex:permission1 a prog:RequestPermission ;
+    prog:RequestPermission_dc ex:dc1 ;
+    prog:RequestPermission_ds ex:ds1 ;
+    prog:RequestPermission_action ex:action1 ;
+    prog:RequestPermission_constraints ex:constraint1 ;
+    prog:RequestPermission_asset ex:list1 .
 
-dpv:AcademicResearch a odrl:Purpose ;
-    pol:identifier "urn:uuid:academic-research-purpose" ;
-    pol:purposeName "Academic Research" .
+ex:dc1 a prog:DataController ;
+    prog:DataController_id "dc-1" .
 
-odrl:use a odrl:Action ;
-    pol:identifier "urn:uuid:use-action" ;
-    odrl:description "Use the asset for the purpose specified in the constraint" ;
-    odrl:label "Use" .
+ex:ds1 a prog:DataSubject ;
+    prog:DataSubject_id "ds-1" .
 
-dpv:Share a odrl:Action ;
-    pol:identifier "urn:uuid:share-action" ;
-    odrl:description "Share the asset with the assignee for the purpose specified in the constraint" ;
-    odrl:label "Share" .
+ex:action1 a prog:Action ;
+    prog:Action_type "read" .
 
-ex:dc1 a odrl:DataController ;
-    pol:identifier "dc-1" .
+ex:constraint1 a prog:Constraint ;
+    prog:Constraint_rightOperands ex:rightOperands1 .
 
-ex:ds1 a odrl:DataSubject ;
-    pol:identifier "ds-1" .
+ex:rightOperands1 a prog:RightOperands ;
+    prog:RightOperands_id "purpose-1" .
 
-ex:action1 a odrl:Action ;
-    pol:identifier "read" .
+ex:list1 a prog:List ;
+    prog:List_content ex:asset1 ;
+    prog:List_next ex:list2 .
 
-ex:constraint1 a odrl:Constraint ;
-    odrl:leftOperand odrl:purpose ;
-    odrl:operator odrl:eq ;
-    odrl:rightOperand "purpose-1" .
+ex:list2 a prog:List ;
+    prog:List_content ex:asset2 .
 
-ex:asset1 a odrl:Asset ;
-    pol:identifier "email" ;
-    odrl:label "email" .
+ex:asset1 a prog:Asset ;
+    prog:Asset_attributeName "email" .
 
-ex:asset2 a odrl:Asset ;
-    pol:identifier "name" ;
-    odrl:label "name" .
-
-ex:list1 a odrl:AssetCollection ;
-    pol:identifier "asset-list-1" .
-
-ex:asset1 odrl:partOf ex:list1 .
-
-ex:asset2 odrl:partOf ex:list1 .
-
-ex:permission1 a odrl:Permission ;
-    odrl:assigner ex:dc1 ;
-    odrl:assignee ex:ds1 ;
-    odrl:action ex:action1 ;
-    odrl:constraint ex:constraint1 ;
-    odrl:target ex:list1 .
+ex:asset2 a prog:Asset ;
+    prog:Asset_attributeName "name" .
