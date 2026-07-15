@@ -20,6 +20,7 @@ import no.uio.microobject.type.*
 import org.apache.jena.query.QueryExecution
 import org.apache.jena.query.QueryExecutionFactory
 import org.apache.jena.query.QueryFactory
+import org.apache.jena.query.QuerySolution
 import org.apache.jena.query.ResultSet
 import org.semanticweb.HermiT.Reasoner
 import org.semanticweb.owlapi.apibinding.OWLManager
@@ -172,79 +173,250 @@ class Interpreter(
 
     fun odrlQuery(userId: String, subjectId: String, actionType: String, purposeId: String, attributes: List<String>): Pair<Boolean, Double> {
         val startNs = System.nanoTime()
-        val queryStr =
-            if (attributes.isEmpty()) {
-                """
-                ASK WHERE {
-                    ?permission a prog:RequestPermission ;
-                                prog:RequestPermission_dc ?dc ;
-                                prog:RequestPermission_ds ?ds ;
-                                prog:RequestPermission_action ?action ;
-                                prog:RequestPermission_constraints ?constrains .
-                    ?dc a prog:DataController ;
-                        prog:DataController_id ?dcId .
-                    ?ds a prog:DataSubject ;
-                        prog:DataSubject_id ?dsId .
-                    ?action a prog:Action ;
-                        prog:Action_type ?actionTypeId .
-                    ?constrains a prog:Constraint ;
-                        prog:Constraint_rightOperands ?operands .
-                    ?operands a prog:RightOperands ;
-                        prog:RightOperands_id ?purposeValue .
-                    FILTER(STR(?dcId) = "$userId")
-                    FILTER(STR(?dsId) = "$subjectId")
-                    FILTER(STR(?actionTypeId) = "$actionType")
-                    FILTER(STR(?purposeValue) = "$purposeId")
-                }
-                """.trimIndent()
-            } else {
-                val uniqueAttrs = attributes.toSet()
-                val filterValues = uniqueAttrs.joinToString(" ") { "\"$it\"" }
-                val attrCount = attributes.toSet().size
-                """
-                ASK WHERE {
-                    {
-                        SELECT ?permission WHERE {
-                            ?permission a prog:RequestPermission ;
-                                        prog:RequestPermission_dc ?dc ;
-                                        prog:RequestPermission_ds ?ds ;
-                                        prog:RequestPermission_action ?action ;
-                                        prog:RequestPermission_constraints ?constrains .
-                            ?dc a prog:DataController ;
-                                prog:DataController_id ?dcId .
-                            ?ds a prog:DataSubject ;
-                                prog:DataSubject_id ?dsId .
-                            ?action a prog:Action ;
-                                prog:Action_type ?actionTypeId .
-                            ?constrains a prog:Constraint ;
-                                        prog:Constraint_rightOperands ?operands .
-                            ?operands a prog:RightOperand ;
-                                prog:RightOperand_id ?purposeValue .
-                            FILTER(STR(?dcId) = "$userId")
-                            FILTER(STR(?dsId) = "$subjectId")
-                            FILTER(STR(?actionTypeId) = "$actionType")
-                            FILTER(STR(?purposeValue) = "$purposeId")
+        val quotedUserId = "\"${userId.replace("\"", "\\\"")}\""
+        val quotedSubjectId = "\"${subjectId.replace("\"", "\\\"")}\""
+        val queryStr = """
+        SELECT ?permission ?actionsList ?constraintsList ?assetList WHERE {
+            ?permission a prog:RequestPermission ;
+                        prog:RequestPermission_dc ?dc ;
+                        prog:RequestPermission_ds ?ds ;
+                        prog:RequestPermission_actions ?actionsList ;
+                        prog:RequestPermission_constraints ?constraintsList ;
+                        prog:RequestPermission_assets ?assetList .
+            ?dc a prog:DataController ;
+                prog:DataController_id $quotedUserId .
+            ?ds a prog:DataSubject ;
+                prog:DataSubject_id $quotedSubjectId .
+        }
+        """.trimIndent()
 
-                            VALUES ?wantedAttr { $filterValues }
-                            ?permission prog:RequestPermission_asset/(prog:List_next)*/prog:List_content ?asset .
-                            ?asset a prog:Asset ;
-                                   prog:Asset_attributeName ?attrName .
-                            FILTER(STR(?attrName) = STR(?wantedAttr))
-                        }
-                        GROUP BY ?permission
-                        HAVING (COUNT(DISTINCT ?wantedAttr) = $attrCount)
-                    }
+        val results = query(queryStr)
+        var matched = false
+        var heapResultCount = 0
+        if (results != null) {
+            for (r in results) {
+                heapResultCount++
+                if (checkPermissionManually(r, actionType, purposeId, attributes.toSet())) {
+                    matched = true
+                    break
                 }
-                """.trimIndent()
             }
+        }
 
-        val result = ask(queryStr)
+        // Fallback to SPARQL query if no matches found in heap and domainPrefix is set
+        if (!matched && heapResultCount == 0 && settings.domainPrefix.isNotEmpty()) {
+            matched = checkPermissionViaSparql(userId, subjectId, actionType, purposeId, attributes.toSet())
+        }
 
         val endNs = System.nanoTime()
         settings.metrics.recordQuery(endNs - startNs)
-        return Pair(result, (endNs - startNs).toDouble() / 1_000_000.0)
+        return Pair(matched, (endNs - startNs).toDouble() / 100000000.0)
     }
 
+    private fun checkPermissionManually(r: QuerySolution, actionType: String, purposeId: String, requiredAttrs: Set<String>): Boolean {
+        val permNode = r.get("permission") ?: return false
+        val actionsListNode = r.get("actionsList") ?: return false
+        val constraintsListNode = r.get("constraintsList") ?: return false
+        val assetListNode = r.get("assetList") ?: return false
+
+        val permName = permNode.toString().removePrefix(settings.runPrefix)
+        val actionsListName = actionsListNode.toString().removePrefix(settings.runPrefix)
+        val constraintsListName = constraintsListNode.toString().removePrefix(settings.runPrefix)
+        val assetListName = assetListNode.toString().removePrefix(settings.runPrefix)
+
+        if (permName == permNode.toString()) return false
+
+        val smolNullUri = "${settings.langPrefix}null"
+
+        // Action/constraint/asset checks: heap traversal first, combined SPARQL fallback
+        val actionOk = if (actionsListName != smolNullUri) {
+            checkListContainsActionType(actionsListName, actionType)
+        } else false
+        val purposeOk = if (constraintsListName != smolNullUri) {
+            checkListContainsPurpose(constraintsListName, purposeId)
+        } else false
+        val attrsOk = if (requiredAttrs.isEmpty()) {
+            true
+        } else if (assetListName != smolNullUri) {
+            checkListHasAllAttributes(assetListName, requiredAttrs)
+        } else false
+
+        if (actionOk && purposeOk && attrsOk) return true
+
+        val permMem = getHeapMemory(permName)
+        val permStoredId = (permMem?.get("id") as? LiteralExpr)?.literal?.removeSurrounding("\"")
+        val permFullId = if (permStoredId != null) settings.runPrefix + permStoredId else null
+        if (permFullId != null && checkOdrlViaSparql(permFullId, actionType, purposeId, requiredAttrs)) return true
+        return false
+    }
+
+    // Direct SPARQL check against the background ontology, used as a fallback when
+    // adaptAddRequestPermission failed to create heap-based RequestPermission objects.
+    // Uses a single SELECT query with COUNT(DISTINCT) to verify all attributes in one round-trip.
+    private fun checkPermissionViaSparql(userId: String, subjectId: String, actionType: String, purposeId: String, requiredAttrs: Set<String>): Boolean {
+        val odrl = "http://www.w3.org/ns/odrl/2/"
+        val domain = settings.domainPrefix
+        val sotwContext = "https://w3id.org/force/sotw#context"
+
+        if (requiredAttrs.isEmpty()) {
+            return ask("""
+                ASK WHERE {
+                    ?perm a <${odrl}Permission> ;
+                          <${odrl}assignee> ?dc ;
+                          <${odrl}assigner> ?ds ;
+                          <${odrl}action> ?action ;
+                          <$sotwContext> ?constraint .
+                    ?dc <${domain}identifier> "$userId" .
+                    ?ds <${domain}identifier> "$subjectId" .
+                    ?action <${odrl}label> "$actionType" .
+                    ?constraint <${odrl}rightOperand> ?purpose .
+                    ?purpose <${domain}identifier> "$purposeId" .
+                }
+            """.trimIndent())
+        }
+
+        val attrFilter = requiredAttrs.joinToString(", ") { "\"$it\"" }
+        val results = query("""
+            SELECT ?perm (COUNT(DISTINCT ?asset) AS ?matched) WHERE {
+                ?perm a <${odrl}Permission> ;
+                      <${odrl}assignee> ?dc ;
+                      <${odrl}assigner> ?ds ;
+                      <${odrl}action> ?action ;
+                      <$sotwContext> ?constraint .
+                ?dc <${domain}identifier> "$userId" .
+                ?ds <${domain}identifier> "$subjectId" .
+                ?action <${odrl}label> "$actionType" .
+                ?constraint <${odrl}rightOperand> ?purpose .
+                ?purpose <${domain}identifier> "$purposeId" .
+                ?perm <${odrl}target> ?asset .
+                ?asset <${odrl}label> ?attrName .
+                FILTER (?attrName IN ($attrFilter))
+            }
+            GROUP BY ?perm
+            HAVING (?matched >= ${requiredAttrs.size})
+        """.trimIndent())
+        return results != null && results.hasNext()
+    }
+
+    // Combined SPARQL check that verifies action, purpose, and attributes in a single query.
+    // Used when heap-based lists are null (set*() methods failed due to runPrefix stripping).
+    private fun checkOdrlViaSparql(permFullId: String, actionType: String, purposeId: String, requiredAttrs: Set<String>): Boolean {
+        if (settings.domainPrefix.isEmpty()) return false
+        val odrl = "http://www.w3.org/ns/odrl/2/"
+        val sotwContext = "https://w3id.org/force/sotw#context"
+        val domain = settings.domainPrefix
+        val fullPurposeId = settings.runPrefix + purposeId
+
+        if (requiredAttrs.isEmpty()) {
+            return ask("""
+                ASK WHERE {
+                    ?perm a <${odrl}Permission> ;
+                          <${domain}identifier> "$permFullId" ;
+                          <${odrl}action> ?action ;
+                          <$sotwContext> ?constraint .
+                    ?action <${odrl}label> "$actionType" .
+                    ?constraint <${odrl}rightOperand> ?purpose .
+                    ?purpose <${domain}identifier> "$fullPurposeId" .
+                }
+            """.trimIndent())
+        }
+
+        val attrFilter = requiredAttrs.joinToString(", ") { "\"$it\"" }
+        val results = query("""
+            SELECT ?perm (COUNT(DISTINCT ?asset) AS ?matched) WHERE {
+                ?perm a <${odrl}Permission> ;
+                      <${domain}identifier> "$permFullId" ;
+                      <${odrl}action> ?action ;
+                      <$sotwContext> ?constraint .
+                ?action <${odrl}label> "$actionType" .
+                ?constraint <${odrl}rightOperand> ?purpose .
+                ?purpose <${domain}identifier> "$fullPurposeId" .
+                ?perm <${odrl}target> ?asset .
+                ?asset <${odrl}label> ?attrName .
+                FILTER (?attrName IN ($attrFilter))
+            }
+            GROUP BY ?perm
+            HAVING (?matched >= ${requiredAttrs.size})
+        """.trimIndent())
+        return results != null && results.hasNext()
+    }
+
+    private fun getHeapMemory(name: String): Memory? {
+        val key = heap.keys.find { it.literal == name } ?: return null
+        return heap[key]
+    }
+
+    private fun checkListContainsActionType(listHeadName: String, actionType: String): Boolean {
+        var currentName = listHeadName
+        while (true) {
+            val listKey = heap.keys.find { it.literal == currentName } ?: break
+            val listMem = heap[listKey] ?: break
+            val contentRef = listMem["content"] as? LiteralExpr ?: break
+            val actionMem = getHeapMemory(contentRef.literal) ?: break
+            val actionTypeVal = (actionMem["type"] as? LiteralExpr)?.literal?.removeSurrounding("\"")
+            if (actionTypeVal != null && actionTypeVal == actionType) return true
+            val nextRef = listMem["next"] as? LiteralExpr ?: break
+            if (nextRef.literal == "null") break
+            currentName = nextRef.literal
+        }
+        return false
+    }
+
+    private fun checkListContainsPurpose(constraintsListHeadName: String, purposeId: String): Boolean {
+        var constraintListName = constraintsListHeadName
+        while (true) {
+            val constraintListKey = heap.keys.find { it.literal == constraintListName } ?: break
+            val constraintListMem = heap[constraintListKey] ?: break
+            val constraintRef = constraintListMem["content"] as? LiteralExpr ?: break
+            val constraintMem = getHeapMemory(constraintRef.literal) ?: break
+
+            if (checkOperandsListContainsPurpose(constraintMem, purposeId)) return true
+
+            val nextRef = constraintListMem["next"] as? LiteralExpr ?: break
+            if (nextRef.literal == "null") break
+            constraintListName = nextRef.literal
+        }
+        return false
+    }
+
+    private fun checkOperandsListContainsPurpose(constraintMem: Memory, purposeId: String): Boolean {
+        val rightOperandsRef = constraintMem["rightOperands"] as? LiteralExpr ?: return false
+        var operandsListName = rightOperandsRef.literal
+        while (true) {
+            val operandsListKey = heap.keys.find { it.literal == operandsListName } ?: break
+            val operandsListMem = heap[operandsListKey] ?: break
+            val operandRef = operandsListMem["content"] as? LiteralExpr ?: break
+            val operandMem = getHeapMemory(operandRef.literal) ?: break
+            val operId = (operandMem["id"] as? LiteralExpr)?.literal?.removeSurrounding("\"")
+            if (operId != null && operId == purposeId) return true
+            val nextRef = operandsListMem["next"] as? LiteralExpr ?: break
+            if (nextRef.literal == "null") break
+            operandsListName = nextRef.literal
+        }
+        return false
+    }
+
+    private fun checkListHasAllAttributes(listHeadName: String, requiredAttrs: Set<String>): Boolean {
+        val foundAttrs = mutableSetOf<String>()
+        var currentName = listHeadName
+        while (true) {
+            val listKey = heap.keys.find { it.literal == currentName } ?: break
+            val listMem = heap[listKey] ?: break
+            val contentRef = listMem["content"] as? LiteralExpr ?: break
+            val assetMem = getHeapMemory(contentRef.literal)
+            if (assetMem != null) {
+                val attrName = (assetMem["attributeName"] as? LiteralExpr)?.literal?.removeSurrounding("\"")
+                if (attrName != null && attrName in requiredAttrs) {
+                    foundAttrs.add(attrName)
+                    if (foundAttrs.size >= requiredAttrs.size) return true
+                }
+            }
+            val nextRef = listMem["next"] as? LiteralExpr ?: break
+            if (nextRef.literal == "null") break
+            currentName = nextRef.literal
+        }
+        return false
+    }
 
     // Run OWL query and return all instances of the described class.
     // str should be in Manchester syntax

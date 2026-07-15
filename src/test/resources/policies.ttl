@@ -1,0 +1,162 @@
+@prefix odrl: <http://www.w3.org/ns/odrl/2/>.
+@prefix temp: <http://example.com/request/>.
+@prefix dct: <http://purl.org/dc/terms/>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+@prefix dpv: <https://w3id.org/dpv#>.
+@prefix pol: <http://www.smolang.org/greenhouseDT-policy#> .
+@prefix ast: <http://www.smolang.org/greenhouseDT#> .
+
+<urn:uuid:basil2Policy> a odrl:Policy ;
+                        pol:identifier "urn:uuid:basil2Policy" ;
+                        odrl:assigner ast:basilicum2 ;
+                        odrl:permission <urn:uuid:watering-basil2>, <urn:uuid:researching-basil2> .
+
+# Watering
+<urn:uuid:watering-basil2> a odrl:Permission;
+                       pol:identifier "urn:uuid:watering-basil2" ;
+                       odrl:action odrl:use;
+                       odrl:target pol:WateringAsset;
+                       odrl:assignee ast:greenhouse;
+                       odrl:constraint pol:basil2GreenhousePermissionConstraint, pol:basil2GreenhousePermissionConstraint2 .
+
+# We will define a odrl:Operand, and Purpose and all the other type of right operands will be subclasses of odrl:Operand.
+# This is for future work, I have too much stuff to do and I want to go on holiday.
+pol:WateringPurpose a odrl:Purpose ;
+    pol:identifier "urn:uuid:watering-purpose" ;
+    pol:purposeName "Watering" .
+
+dpv:AcademicResearch a odrl:Purpose ;
+    pol:identifier "urn:uuid:academic-research-purpose" ;
+    pol:purposeName "Academic Research" .
+
+# Researching
+<urn:uuid:researching-basil2> a odrl:Permission ;
+                              pol:identifier "urn:uuid:researching-basil2" ;
+                              odrl:action odrl:use, dpv:Share;
+                              odrl:target pol:ResearchAsset;
+                              odrl:assignee pol:ResearchInstitution;
+                              odrl:constraint pol:researchInstitutionPermissionConstraint .
+
+pol:ResearchInstitution a odrl:Party, dpv:ThirdParty .
+
+odrl:use a odrl:Action ;
+    pol:identifier "urn:uuid:use-action" ;
+    odrl:description "Use the asset for the purpose specified in the constraint" ;
+    odrl:label "Use" .
+
+dpv:Share a odrl:Action ;
+    pol:identifier "urn:uuid:share-action" ;
+    odrl:description "Share the asset with the assignee for the purpose specified in the constraint" ;
+    odrl:label "Share" .
+
+ast:basilicum2 a odrl:DataSubject ;
+    pol:identifier "urn:uuid:basilicum2" ;
+    odrl:description "The basilicum2 plant in the greenhouse" ;
+    odrl:label "Basilicum2" .
+
+ast:greenhouse a odrl:DataController ;
+    pol:identifier "urn:uuid:greenhouse" ;
+    odrl:description "The greenhouse system that is responsible for watering the plants" ;
+    odrl:label "Greenhouse" .
+
+pol:WateringAsset a odrl:AssetCollection ;
+    pol:identifier "urn:uuid:watering-asset" ;
+    odrl:description "The asset collection that contains the data related to watering the plants" ;
+    odrl:label "Watering Asset" .
+
+pol:basil2GreenhousePermissionConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:basil2GreenhousePermissionConstraint-1" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:operator odrl:isAnyOf ;
+    odrl:rightOperand pol:WateringPurpose .
+
+pol:basil2GreenhousePermissionConstraint2 a odrl:Constraint ;
+    pol:identifier "urn:uuid:basil2GreenhousePermissionConstraint-2" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:operator odrl:isAnyOf ;
+    odrl:rightOperand pol:WateringPurpose .
+
+pol:researchInstitutionPermissionConstraint a odrl:Constraint;
+                                    pol:identifier "urn:uuid:researchInstitutionPermissionConstraint-1" ;
+                                    odrl:leftOperand odrl:purpose;
+                                    odrl:operator odrl:isAnyOf;
+                                    odrl:rightOperand dpv:AcademicResearch .
+
+# Watering request
+<urn:uuid:wateringRequest-1> a odrl:Request;
+                     pol:identifier "urn:uuid:wateringRequest-1" ;
+                     odrl:permission pol:WateringPermission .
+
+pol:WateringPermission a odrl:Permission;
+                       pol:identifier "urn:uuid:wateringPermission-1" ;
+                       odrl:assignee ast:greenhouse;
+                       odrl:assigner ast:basilicum2 ;
+                       odrl:action odrl:use;
+                       odrl:target ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+                       <https://w3id.org/force/sotw#context> pol:basilicum2WateringPermissionConstraint .
+
+pol:basilicum2WateringPermissionConstraint a odrl:Constraint ;
+                                pol:identifier "urn:uuid:basilicum2WateringPermissionConstraint-1" ;
+                                odrl:leftOperand odrl:purpose;
+                                odrl:operator odrl:eq;
+                                odrl:rightOperand pol:WateringPurpose .
+
+# Research request
+<urn:uuid:researchRequest-1> a odrl:Request;
+                             pol:identifier "urn:uuid:researchRequest-1" ;
+                             odrl:permission <urn:uuid:researching-basil2-request> .
+
+<urn:uuid:researching-basil2-request> a odrl:Permission ;
+                              pol:identifier "urn:uuid:researching-basil2-request" ;
+                              odrl:action odrl:use, dpv:Share ;
+                              odrl:target ast:plantId, ast:potId, ast:hasMoisture ;
+                              odrl:assignee pol:ResearchInstitution;
+                              odrl:assigner ast:basilicum2 ;
+                              <https://w3id.org/force/sotw#context> pol:plantRequestPermissionConstraint .
+
+pol:plantRequestPermissionConstraint a odrl:Constraint;
+                            pol:identifier "urn:uuid:plantRequestPermissionConstraint-1" ;
+                            odrl:leftOperand odrl:purpose;
+                            odrl:operator odrl:eq;
+                            odrl:rightOperand dpv:AcademicResearch .
+
+<urn:uuid:sotw-1> a pol:Sotw;
+                  pol:identifier "urn:uuid:sotw-1" ;
+                  pol:timestamp temp:currentTime ;
+                  pol:includes pol:ResearchAsset, pol:WateringAsset .
+
+temp:currentTime dct:issued "2024-02-12T11:20:10.999Z"^^xsd:dateTime.
+
+ast:plantId a odrl:Asset ;
+    pol:identifier "urn:uuid:plantId" ;
+    odrl:description "The identifier of the plant" ;
+    odrl:label "plantId" .
+ast:idealMoisture a odrl:Asset ;
+    pol:identifier "urn:uuid:idealMoisture" ;
+    odrl:description "The ideal moisture level of the plant" ;
+    odrl:label "idealMoisture" .
+ast:potId a odrl:Asset ;
+    pol:identifier "urn:uuid:potId" ;
+    odrl:description "The identifier of the pot" ;
+    odrl:label "potId" .
+ast:hasMoisture a odrl:Asset ;
+    pol:identifier "urn:uuid:hasMoisture" ;
+    odrl:description "The current moisture level of the plant" ;
+    odrl:label "hasMoisture" .
+
+pol:WateringAsset a odrl:AssetCollection ;
+    pol:identifier "urn:uuid:watering-asset" ;
+    odrl:description "The asset collection that contains the data related to watering the plants" ;
+    odrl:label "Watering Asset" .
+ast:plantId odrl:partOf pol:WateringAsset .
+ast:idealMoisture odrl:partOf pol:WateringAsset .
+ast:potId odrl:partOf pol:WateringAsset .
+ast:hasMoisture odrl:partOf pol:WateringAsset ;.
+
+pol:ResearchAsset a odrl:AssetCollection ;
+    pol:identifier "urn:uuid:research-asset" ;
+    odrl:description "The asset collection that contains the data related to researching the plants" ;
+    odrl:label "Research Asset" .
+ast:plantId odrl:partOf pol:ResearchAsset .
+ast:potId odrl:partOf pol:ResearchAsset .
+ast:hasMoisture odrl:partOf pol:ResearchAsset .

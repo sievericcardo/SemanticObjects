@@ -1,0 +1,178 @@
+class RequestModel extends ODRLModel()
+    Unit adaptAddRequestPermission()
+        List<RequestPermission> permissions = construct("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?id ?dc ?ds
+WHERE {
+    ?perm a odrl:Permission ;
+        pol:identifier ?id ;
+        odrl:assignee ?assignee ;
+        odrl:assigner ?assigner .
+    ?assignee a odrl:DataController ;
+        pol:identifier ?dcId .
+    ?assigner a odrl:DataSubject ;
+        pol:identifier ?dsId .
+    ?ds a prog:DataSubject ;
+        prog:DataSubject_id ?dsId .
+    ?dc a prog:DataController ;
+        prog:DataController_id ?dcId .
+    FILTER NOT EXISTS {
+        ?obj a prog:Permission ;
+            prog:Permission_id ?id .
+    }
+}
+        ");
+
+        if permissions != null then
+            print("RECONFIG> New Request Permission(s) detected: repairing the model");
+
+            while permissions != null do
+                RequestPermission newPermission = permissions.content;
+                
+                List<RequestPermission> lx = permissions;
+                permissions = permissions.next;
+                print("RECONFIG> New request permission detected: ");
+                print("          Permission Id: " ++ newPermission.id);
+
+                newPermission.setAssets();
+                newPermission.setActions();
+                newPermission.setRequestConstraints();
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Request Permission(s) added");
+        end
+    end
+
+    Unit adaptAddRequest()
+        List<Request> requests = construct("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?id ?permission
+WHERE {
+    ?req a odrl:Request ;
+        pol:identifier ?id ;
+        odrl:permission ?odrlPermission .
+    ?odrlPermission a odrl:Permission ;
+        pol:identifier ?permissionId .
+    ?permission a prog:Permission ;
+        prog:Permission_id ?permissionId .
+    FILTER NOT EXISTS {
+        ?obj a prog:Request ;
+            prog:Request_id ?id .
+    }
+}
+        ");
+
+        if requests != null then
+            print("RECONFIG> New Request(s) detected: repairing the model");
+
+            while requests != null do
+                Request newRequest = requests.content;
+                
+                List<Request> lx = requests;
+                requests = requests.next;
+                print("RECONFIG> New request detected: ");
+                print("          Request Id: " ++ newRequest.id);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Request(s) added");
+        end
+    end
+
+    override Unit adaptAddition()
+        print("RECONFIG> Adapting addition of Requests for ODRL");
+        this.adaptAddRequestPermission();
+        this.adaptAddRequest();
+        print("RECONFIG> Adapting addition of Requests DONE for ODRL");
+    end
+
+    Unit adaptRemoveRequestPermission()
+        List<RequestPermission> permissions = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?obj a prog:RequestPermission ;
+        prog:RequestPermission_id ?id .
+    FILTER NOT EXISTS {
+        ?perm a odrl:Permission ;
+            pol:identifier ?id .
+    }
+}
+        ");
+
+        if permissions != null then
+            print("RECONFIG> Misconfigured Request Permission(s) detected: repairing the model");
+            while permissions != null do
+                RequestPermission wrongPermission = permissions.content;
+                List<RequestPermission> lx = permissions;
+                permissions = permissions.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured request permission to remove: ");
+                print("          Permission Id: " ++ wrongPermission.id);
+            end
+
+            print("RECONFIG> Misconfigured Request Permission(s) removed");
+        end
+    end
+
+    Unit adaptRemoveRequest()
+        List<Request> requests = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?obj a prog:Request ;
+        prog:Request_id ?id .
+    FILTER NOT EXISTS {
+        ?req a odrl:Request ;
+            pol:identifier ?id .
+    }
+}
+        ");
+
+        if requests != null then
+            print("RECONFIG> Misconfigured Request(s) detected: repairing the model");
+            while requests != null do
+                Request wrongRequest = requests.content;
+                List<Request> lx = requests;
+                requests = requests.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured request to remove: ");
+                print("          Request Id: " ++ wrongRequest.id);
+            end
+
+            print("RECONFIG> Misconfigured Request(s) removed");
+        end
+    end
+
+    override Unit adaptRemoval()
+        print("RECONFIG> Adapting removal of Requests for ODRL");
+        this.adaptRemoveRequestPermission();
+        this.adaptRemoveRequest();
+        print("RECONFIG> Adapting removal of Requests DONE for ODRL");
+    end
+
+    override Unit adaptDefect()
+        print("RECONFIG> Adapting defect of Requests for ODRL");
+        // this.adaptRemoveRequestPermission();
+        // this.adaptRemoveRequest();
+        print("RECONFIG> Adapting defect of Requests DONE for ODRL");
+    end
+
+    override Unit adaptBehaviour()
+        print("RECONFIG> Adapting behaviour of Requests for ODRL");
+        print("RECONFIG> Adapting behaviour of Requests DONE for ODRL");
+    end
+end

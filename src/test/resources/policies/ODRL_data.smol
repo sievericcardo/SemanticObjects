@@ -1,0 +1,337 @@
+abstract class Party() end
+
+class DataSubject (String id) end
+
+class DataController (String id) end
+
+class Policy (String id, DataSubject ds, ExplList<PolicyPermission> permissions)
+    Unit setPermissions()
+        ExplList<PolicyPermission> perms = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?policy a odrl:Policy ;
+        pol:identifier ?id ;
+        odrl:permissions ?odrlPermissions .
+    ?odrlPermissions a odrl:Permission ;
+        odrl:permission_id ?permissions .
+    ?obj a prog:PolicyPermission ;
+        prog:PolicyPermission_id ?id ;
+}
+        ");
+
+        if perms != null then
+            print("RECONFIG> New Permission(s) for Policy detected: repairing the model");
+
+            this.permissions = perms;
+
+            while perms != null do
+                PolicyPermission newPermission = perms.content;
+                
+                ExplList<PolicyPermission> lx = perms;
+                perms = perms.next;
+                print("RECONFIG> New policy permission detected: ");
+                print("          Permission Id: " ++ newPermission.id);
+            end
+
+            print("RECONFIG> Permission(s) for Policy added");
+        end
+        
+    end
+end
+
+// class PolicyPermission (Policy policy, Permission permission) end
+
+// dc -> ordl:assignee, ds -> odrl:assigner, ac -> ordl:target
+abstract class Permission (
+    String id,
+    DataController dc,
+    DataSubject ds,
+    ExplList<Action> actions,
+    ExplList<Constraint> constraints
+)
+    Unit setActions()
+        ExplList<Action> acts = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?perm a odrl:Permission ;
+        pol:identifier %1 ;
+        odrl:action ?odrlAction .
+    ?odrlAction a odrl:Action ;
+        odrl:label ?actionType .
+    ?obj a prog:Action ;
+        prog:Action_type ?actionType .
+}
+        ", this.id);
+
+        if acts != null then
+            print("RECONFIG> New Action(s) for Permission detected: repairing the model");
+
+            this.actions = acts;
+
+            while this.actions != null do
+                Action newAction = this.actions.content;
+                
+                ExplList<Action> lx = this.actions;
+                this.actions = this.actions.next;
+                print("RECONFIG> New action detected: ");
+                print("          Action Type: " ++ newAction.type);
+            end
+
+            print("RECONFIG> Action(s) for Permission added");
+        end
+    end
+end
+
+class PolicyPermission extends Permission(AssetCollection ac)
+    override Unit setActions()
+        super();
+    end
+
+    Unit setPolicyConstraints()
+        ExplList<Constraint> cons = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?perm a odrl:Permission ;
+        pol:identifier %1 ;
+        odrl:constraint ?odrlConstraint .
+    ?odrlConstraint a odrl:Constraint ;
+        pol:identifier ?constraintId .
+    ?obj a prog:Constraint ;
+        prog:Constraint_id ?constraintId .
+}
+        ", this.id);
+
+        if cons != null then
+            print("RECONFIG> New Constraint(s) for Permission detected: repairing the model");
+
+            this.constraints = cons;
+
+            while cons != null do
+                Constraint newConstraint = cons.content;
+                
+                ExplList<Constraint> lx = cons;
+                cons = cons.next;
+                print("RECONFIG> New constraint detected: ");
+                print("          Constraint Id: " ++ newConstraint.id);
+            end
+
+            print("RECONFIG> Constraint(s) for Permission added");
+        end
+    end
+end
+
+class RequestPermission extends Permission(ExplList<Asset> assets)
+    override Unit setActions()
+        super();
+    end
+
+    Unit setRequestConstraints()
+        ExplList<Constraint> cons = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?perm a odrl:Permission ;
+        pol:identifier %1 ;
+        <https://w3id.org/force/sotw#context> ?odrlConstraint .
+    ?odrlConstraint a odrl:Constraint ;
+        pol:identifier ?constraintId .
+    ?obj a prog:Constraint ;
+        prog:Constraint_id ?constraintId .
+}
+        ", this.id);
+
+        if cons != null then
+            print("RECONFIG> New Constraint(s) for Permission detected: repairing the model");
+
+            this.constraints = cons;
+
+            while cons != null do
+                Constraint newConstraint = cons.content;
+                
+                ExplList<Constraint> lx = cons;
+                cons = cons.next;
+                print("RECONFIG> New constraint detected: ");
+                print("          Constraint Id: " ++ newConstraint.id);
+            end
+
+            print("RECONFIG> Constraint(s) for Permission added");
+        end
+    end
+
+    Unit setAssets()
+        ExplList<Asset> assets = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?perm a odrl:Permission ;
+        pol:identifier %1 ;
+        odrl:target ?assets .
+    ?assets a odrl:Asset ;
+        pol:identifier ?assetId .
+    ?obj a prog:Asset ;
+        prog:Asset_id ?assetId .
+}
+        ", this.id);
+
+        if assets != null then
+            print("RECONFIG> New Asset(s) for Request Permission detected: repairing the model");
+
+            this.assets = assets;
+
+            while assets != null do
+                Asset newAsset = assets.content;
+                
+                ExplList<Asset> lx = assets;
+                assets = assets.next;
+                print("RECONFIG> New asset detected: ");
+                print("          Asset Id: " ++ newAsset.id);
+            end
+
+            print("RECONFIG> Asset(s) for Request Permission added");
+        end
+    end
+end
+
+// use, collect, store, share
+class Action (String type) end
+
+class Request (String id, Permission permission) end
+
+// class Constraint (
+//     String id,
+//     String leftOperand,
+//     String operator,
+//     ExplList<Operand> rightOperands
+// )
+class Constraint (
+    String id,
+    ExplList<Operand> rightOperands
+)
+    Unit setRightOperands()
+        ExplList<Operand> operands = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?constraint a odrl:Constraint ;
+        pol:identifier %1 ;
+        odrl:rightOperand ?odrlRightOperand .
+    ?odrlRightOperand a odrl:Purpose ;
+        pol:identifier ?rightOperandId .
+    ?obj a prog:Operand ;
+        prog:Operand_id ?rightOperandId .
+}
+        ", this.id);
+        if operands != null then
+            print("RECONFIG> New Operand(s) for Constraint detected: repairing the model");
+
+            this.rightOperands = operands;
+
+            while operands != null do
+                Operand newOperand = operands.content;
+                
+                ExplList<Operand> lx = operands;
+                operands = operands.next;
+                print("RECONFIG> New operand detected: ");
+                print("          Operand Id: " ++ newOperand.id);
+            end
+
+            print("RECONFIG> Operand(s) for Constraint added");
+        end
+    end
+end
+
+class Operand(String id, String name) end
+
+abstract class ConstraintOperand(String id) end
+
+class Purpose extends ConstraintOperand() end
+
+class Asset (String id, String attributeName) end
+
+class AssetCollection (String id, ExplList<Asset> assets)
+    Unit setAssets()
+        ExplList<Asset> assets = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?ac a odrl:AssetCollection ;
+        pol:identifier %1 .
+    ?asset a odrl:Asset ;
+        pol:identifier ?assetId ;
+        odrl:partOf ?ac .
+    ?obj a prog:Asset ;
+        prog:Asset_id ?assetId .
+}
+        ", this.id);
+
+        if assets != null then
+            print("RECONFIG> New Asset(s) detected: repairing the model");
+
+            this.assets = assets;
+
+            while assets != null do
+                Asset newAsset = assets.content;
+                
+                ExplList<Asset> lx = assets;
+                assets = assets.next;
+                print("RECONFIG> New asset detected: ");
+                print("          Asset Id: " ++ newAsset.id);
+            end
+
+            print("RECONFIG> Asset(s) added");
+        end
+    end
+end
+
+class Sotw (String id, DateTime timestamp, ExplList<AssetCollection> ac)
+    Unit setAssetCollections()
+        ExplList<AssetCollection> acs = access("
+PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
+
+SELECT ?obj
+WHERE {
+    ?sotw a pol:Sotw ;
+        pol:identifier %1 ;
+        pol:includes ?ac .
+    ?ac a odrl:AssetCollection ;
+        pol:identifier ?id .
+    ?obj a prog:AssetCollection ;
+        prog:AssetCollection_id ?id .
+}
+        ", this.id);
+
+        if acs != null then
+            print("RECONFIG> New Asset Collection(s) detected: repairing the model");
+
+            this.ac = acs;
+
+            while acs != null do
+                AssetCollection newAssetCollection = acs.content;
+                
+                ExplList<AssetCollection> lx = acs;
+                acs = acs.next;
+                print("RECONFIG> New asset collection detected: ");
+                print("          Asset Collection Id: " ++ newAssetCollection.id);
+            end
+
+            print("RECONFIG> Asset Collection(s) added");
+        end
+end

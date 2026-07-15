@@ -1,0 +1,96 @@
+abstract class ODRLModel (String name)
+    Unit adaptODRLModel()
+        print("RECONFIG> Reconfiguring the "++ this.name ++ " model for ODRL");
+        this.adaptDefect();
+        this.adaptRemoval();
+        this.adaptAddition();
+    end
+
+    Unit adaptODRLState()
+        print("ADAPT> Adapting state for the "++ this.name ++ " model for ODRL");
+        this.adaptBehaviour();
+    end
+
+    abstract Unit adaptAddition()
+    abstract Unit adaptRemoval()
+    abstract Unit adaptDefect()
+    abstract Unit adaptBehaviour()
+end
+
+class ODRLAssetModel (ExplList<ODRLModel> mods)
+    Unit register(ODRLModel m)
+        this.mods = new ExplList<ODRLModel>(m, this.mods);
+    end
+
+    Unit reconfigure()
+        print("RECONFIG> Reconfiguring the asset model for ODRL");
+
+        ExplList<ODRLModel> ms = this.mods;
+        while ms != null do
+            ms.content.adaptODRLModel();
+            ms = ms.next;
+        end
+
+        print("RECONFIG> Reconfiguring DONE for ODRL");
+    end
+
+    Unit reconfigureSingleModel(String mod)
+        print("RECONFIG> Reconfiguring the asset model for ODRL");
+
+        ExplList<ODRLModel> ms = this.mods;
+        while ms != null do
+            if ms.content.name == mod then
+                print("RECONFIG> Reconfiguring " ++ ms.content.name ++ " for ODRL");
+                ms.content.adaptODRLModel();
+            end
+            ms = ms.next;
+        end
+
+        print("RECONFIG> Reconfiguring DONE for ODRL");
+    end
+
+    Unit reclassify()
+        print("ADAPT> Adapting the asset model for ODRL");
+
+        ExplList<ODRLModel> ms = this.mods;
+        while ms != null do
+            ms.content.adaptODRLState();
+            ms = ms.next;
+        end
+
+        print("ADAPT> Adapting DONE for ODRL");
+    end
+
+    Unit reclassifySingleModel(String mod)
+        print("ADAPT> Adapting the asset model for ODRL");
+
+        ExplList<ODRLModel> ms = this.mods;
+        while ms != null do
+            if ms.content.name == mod then
+                print("ADAPT> Adapting " ++ ms.content.name ++ " for ODRL");
+                ms.content.adaptODRLState();
+            end
+            ms = ms.next;
+        end
+
+        print("ADAPT> Adapting DONE for ODRL");
+    end
+end
+
+main
+    ODRLAssetModel assetModel = new ODRLAssetModel(null);
+
+    PolicyModel policies = new PolicyModel("Policies");
+    RequestModel requests = new RequestModel("Requests");
+    SotwModel sotw = new SotwModel("Sotw");
+
+    assetModel.register(policies);
+    assetModel.register(requests);
+    assetModel.register(sotw);
+
+
+    assetModel.reconfigure();
+    assetModel.reclassify();
+
+    breakpoint;
+end
