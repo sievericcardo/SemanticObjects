@@ -4,7 +4,7 @@ class DataSubject (String id) end
 
 class DataController (String id) end
 
-class Policy (String id, DataSubject ds, List<PolicyPermission> permissions)
+class Policy (String id, DataSubject ds, ExplList<PolicyPermission> permissions)
     Unit setPermissions()
         List<PolicyPermission> perms = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
@@ -25,10 +25,19 @@ WHERE {
         if perms != null then
             print("RECONFIG> New Permission(s) for Policy detected: repairing the model");
 
-            this.permissions = perms;
+            this.permissions = new ExplList<PolicyPermission>(null, null);
+            ExplList<PolicyPermission> cursor = this.permissions;
 
             while perms != null do
+                cursor.content = perms.content;
+                if perms.next != null then
+                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor = cursor.next;
+                end
+
                 PolicyPermission newPermission = perms.content;
+                this.permissions.content = newPermission;
+                this.permissions.next = new ExplList<PolicyPermission>(null, null);
                 
                 List<PolicyPermission> lx = perms;
                 perms = perms.next;
@@ -49,8 +58,8 @@ abstract class Permission (
     String id,
     DataController dc,
     DataSubject ds,
-    List<Action> actions,
-    List<Constraint> constraints
+    ExplList<Action> actions,
+    ExplList<Constraint> constraints
 )
     Unit setActions()
         List<Action> acts = access("
@@ -72,11 +81,17 @@ WHERE {
         if acts != null then
             print("RECONFIG> New Action(s) for Permission detected: repairing the model");
 
-            this.actions = acts;
+            this.actions = new ExplList<Action>(null, null);
+            ExplList<Action> cursor = this.actions;
 
             while acts != null do
+                cursor.content = acts.content;
+                if acts.next != null then
+                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor = cursor.next;
+                end
+
                 Action newAction = acts.content;
-                
                 List<Action> lx = acts;
                 acts = acts.next;
                 print("RECONFIG> New action detected: ");
@@ -107,11 +122,17 @@ WHERE {
         if cons != null then
             print("RECONFIG> New Constraint(s) for Permission detected: repairing the model");
 
-            this.constraints = cons;
+            this.constraints = new ExplList<Constraint>(null, null);
+            ExplList<Constraint> cursor = this.constraints;
 
             while cons != null do
-                Constraint newConstraint = cons.content;
+                cursor.content = cons.content;
+                if cons.next != null then
+                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor = cursor.next;
+                end
 
+                Constraint newConstraint = cons.content;
                 List<Constraint> lx = cons;
                 cons = cons.next;
                 print("RECONFIG> New constraint detected: ");
@@ -142,11 +163,17 @@ WHERE {
         if cons != null then
             print("RECONFIG> New Constraint(s) for Permission detected: repairing the model");
 
-            this.constraints = cons;
+            this.constraints = new ExplList<Constraint>(null, null);
+            ExplList<Constraint> cursor = this.constraints;
 
             while cons != null do
-                Constraint newConstraint = cons.content;
+                cursor.content = cons.content;
+                if cons.next != null then
+                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor = cursor.next;
+                end
 
+                Constraint newConstraint = cons.content;
                 List<Constraint> lx = cons;
                 cons = cons.next;
                 print("RECONFIG> New constraint detected: ");
@@ -160,7 +187,7 @@ end
 
 class PolicyPermission extends Permission(AssetCollection ac) end
 
-class RequestPermission extends Permission(List<Asset> assets)
+class RequestPermission extends Permission(ExplList<Asset> assets)
     Unit setAssets()
         List<Asset> assets = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
@@ -181,11 +208,17 @@ WHERE {
         if assets != null then
             print("RECONFIG> New Asset(s) for Request Permission detected: repairing the model");
 
-            this.assets = assets;
+            this.assets = new ExplList<Asset>(null, null);
+            ExplList<Asset> cursor = this.assets;
 
             while assets != null do
-                Asset newAsset = assets.content;
+                cursor.content = assets.content;
+                if assets.next != null then
+                    cursor.next = new ExplList<Asset>(null, null);
+                    cursor = cursor.next;
+                end
 
+                Asset newAsset = assets.content;
                 List<Asset> lx = assets;
                 assets = assets.next;
                 print("RECONFIG> New asset detected: ");
@@ -210,7 +243,7 @@ class Request (String id, Permission permission) end
 // )
 class Constraint (
     String id,
-    List<Operand> rightOperands
+    ExplList<Operand> rightOperands
 )
     Unit setRightOperands()
         List<Operand> operands = access("
@@ -231,11 +264,17 @@ WHERE {
         if operands != null then
             print("RECONFIG> New Operand(s) for Constraint detected: repairing the model");
 
-            this.rightOperands = operands;
+            this.rightOperands = new ExplList<Operand>(null, null);
+            ExplList<Operand> cursor = this.rightOperands;
 
             while operands != null do
-                Operand newOperand = operands.content;
+                cursor.content = operands.content;
+                if operands.next != null then
+                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor = cursor.next;
+                end
 
+                Operand newOperand = operands.content;
                 List<Operand> lx = operands;
                 operands = operands.next;
                 print("RECONFIG> New operand detected: ");
@@ -255,7 +294,7 @@ class Purpose extends ConstraintOperand() end
 
 class Asset (String id, String attributeName) end
 
-class AssetCollection (String id, List<Asset> assets)
+class AssetCollection (String id, ExplList<Asset> assets)
     Unit setAssets()
         List<Asset> assets = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
@@ -276,11 +315,17 @@ WHERE {
         if assets != null then
             print("RECONFIG> New Asset(s) detected: repairing the model");
 
-            this.assets = assets;
+            this.assets = new ExplList<Asset>(null, null);
+            ExplList<Asset> cursor = this.assets;
 
             while assets != null do
-                Asset newAsset = assets.content;
+                cursor.content = assets.content;
+                if assets.next != null then
+                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor = cursor.next;
+                end
 
+                Asset newAsset = assets.content;
                 List<Asset> lx = assets;
                 assets = assets.next;
                 print("RECONFIG> New asset detected: ");
@@ -292,7 +337,7 @@ WHERE {
     end
 end
 
-class Sotw (String id, DateTime timestamp, List<AssetCollection> ac)
+class Sotw (String id, DateTime timestamp, ExplList<AssetCollection> ac)
     Unit setAssetCollections()
         List<AssetCollection> acs = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
@@ -313,11 +358,17 @@ WHERE {
         if acs != null then
             print("RECONFIG> New Asset Collection(s) detected: repairing the model");
 
-            this.ac = acs;
+            this.ac = new ExplList<AssetCollection>(null, null);
+            ExplList<AssetCollection> cursor = this.ac;
 
             while acs != null do
-                AssetCollection newAssetCollection = acs.content;
+                cursor.content = acs.content;
+                if acs.next != null then
+                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor = cursor.next;
+                end
 
+                AssetCollection newAssetCollection = acs.content;
                 List<AssetCollection> lx = acs;
                 acs = acs.next;
                 print("RECONFIG> New asset collection detected: ");
