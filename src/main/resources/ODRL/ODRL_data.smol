@@ -87,7 +87,7 @@ WHERE {
             while acts != null do
                 cursor.content = acts.content;
                 if acts.next != null then
-                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor.next = new ExplList<Action>(null, null);
                     cursor = cursor.next;
                 end
 
@@ -128,7 +128,7 @@ WHERE {
             while cons != null do
                 cursor.content = cons.content;
                 if cons.next != null then
-                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor.next = new ExplList<Constraint>(null, null);
                     cursor = cursor.next;
                 end
 
@@ -169,7 +169,7 @@ WHERE {
             while cons != null do
                 cursor.content = cons.content;
                 if cons.next != null then
-                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor.next = new ExplList<Constraint>(null, null);
                     cursor = cursor.next;
                 end
 
@@ -270,7 +270,7 @@ WHERE {
             while operands != null do
                 cursor.content = operands.content;
                 if operands.next != null then
-                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor.next = new ExplList<Operand>(null, null);
                     cursor = cursor.next;
                 end
 
@@ -321,7 +321,7 @@ WHERE {
             while assets != null do
                 cursor.content = assets.content;
                 if assets.next != null then
-                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor.next = new ExplList<Asset>(null, null);
                     cursor = cursor.next;
                 end
 
@@ -364,7 +364,7 @@ WHERE {
             while acs != null do
                 cursor.content = acs.content;
                 if acs.next != null then
-                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor.next = new ExplList<AssetCollection>(null, null);
                     cursor = cursor.next;
                 end
 
@@ -377,4 +377,5 @@ WHERE {
 
             print("RECONFIG> Asset Collection(s) added");
         end
+    end
 end
