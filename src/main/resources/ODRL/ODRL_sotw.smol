@@ -100,7 +100,7 @@ WHERE {
         end
     end
 
-    Unit adaptAddOperand ()
+    Unit adaptAddOperand()
         List<Operand> purposes = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
 PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
@@ -121,7 +121,7 @@ WHERE {
 
             while purposes != null do
                 Operand newOperand = purposes.content;
-
+                
                 List<Operand> lx = purposes;
                 purposes = purposes.next;
                 print("RECONFIG> New purpose detected: ");
@@ -155,7 +155,7 @@ WHERE {
 
             while constraints != null do
                 Constraint newConstraint = constraints.content;
-
+                
                 List<Constraint> lx = constraints;
                 constraints = constraints.next;
                 print("RECONFIG> New constraint detected: ");
@@ -192,7 +192,7 @@ WHERE {
 
             while assets != null do
                 Asset newAsset = assets.content;
-
+                
                 List<Asset> lx = assets;
                 assets = assets.next;
                 print("RECONFIG> New asset detected: ");
@@ -226,7 +226,7 @@ WHERE {
 
             while acs != null do
                 AssetCollection newAssetCollection = acs.content;
-
+                
                 List<AssetCollection> lx = acs;
                 acs = acs.next;
                 print("RECONFIG> New asset collection detected: ");
@@ -265,7 +265,7 @@ WHERE {
 
             while sotws != null do
                 Sotw newSotw = sotws.content;
-
+                
                 List<Sotw> lx = sotws;
                 sotws = sotws.next;
                 print("RECONFIG> New sotw detected: ");

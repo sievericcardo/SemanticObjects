@@ -21,8 +21,8 @@ WHERE {
     ?dc a prog:DataController ;
         prog:DataController_id ?dcId .
     FILTER NOT EXISTS {
-        ?obj a prog:Permission ;
-            prog:Permission_id ?id ;
+        ?obj a prog:PolicyPermission ;
+            prog:PolicyPermission_id ?id ;
     }
 }
         ");
@@ -32,7 +32,7 @@ WHERE {
 
             while permissions != null do
                 PolicyPermission newPermission = permissions.content;
-
+                
                 List<PolicyPermission> lx = permissions;
                 permissions = permissions.next;
                 print("RECONFIG> New permission detected: ");
@@ -74,7 +74,7 @@ WHERE {
 
             while pols != null do
                 Policy newPolicy = pols.content;
-
+                
                 List<Policy> lx = pols;
                 pols = pols.next;
                 print("RECONFIG> New policy detected: ");

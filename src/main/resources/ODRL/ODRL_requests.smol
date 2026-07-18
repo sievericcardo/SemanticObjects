@@ -12,15 +12,15 @@ WHERE {
         odrl:assigner ?assigner .
     ?assignee a odrl:DataController ;
         pol:identifier ?dcId .
+    ?dc a prog:DataController ;
+        prog:DataController_id ?dcId .
     ?assigner a odrl:DataSubject ;
         pol:identifier ?dsId .
     ?ds a prog:DataSubject ;
         prog:DataSubject_id ?dsId .
-    ?dc a prog:DataController ;
-        prog:DataController_id ?dcId .
     FILTER NOT EXISTS {
-        ?obj a prog:Permission ;
-            prog:Permission_id ?id .
+        ?obj a prog:RequestPermission ;
+            prog:RequestPermission_id ?id .
     }
 }
         ");
@@ -59,8 +59,8 @@ WHERE {
         odrl:permission ?odrlPermission .
     ?odrlPermission a odrl:Permission ;
         pol:identifier ?permissionId .
-    ?permission a prog:Permission ;
-        prog:Permission_id ?permissionId .
+    ?permission a prog:RequestPermission ;
+        prog:RequestPermission_id ?permissionId .
     FILTER NOT EXISTS {
         ?obj a prog:Request ;
             prog:Request_id ?id .

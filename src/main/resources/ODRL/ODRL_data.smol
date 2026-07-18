@@ -13,14 +13,14 @@ PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 SELECT ?obj
 WHERE {
     ?policy a odrl:Policy ;
-        pol:identifier ?id ;
-        odrl:permissions ?odrlPermissions .
+        pol:identifier %1 ;
+        odrl:permission ?odrlPermissions .
     ?odrlPermissions a odrl:Permission ;
-        odrl:permission_id ?permissions .
+        pol:identifier ?id .
     ?obj a prog:PolicyPermission ;
-        prog:PolicyPermission_id ?id ;
+        prog:PolicyPermission_id ?id .
 }
-        ");
+        ", this.id);
 
         if perms != null then
             print("RECONFIG> New Permission(s) for Policy detected: repairing the model");
