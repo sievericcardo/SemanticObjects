@@ -191,15 +191,15 @@ ASK {
         ?ds a prog:DataSubject ;
             prog:DataSubject_id ?dsId .
         ?actionList a prog:ExplList ;
-            prog:ExplList_content ?action .
+            (prog:ExplList_next)*/prog:ExplList_content ?action .
         ?action a prog:Action ;
             prog:Action_type ?actionTypeId .
         ?constrainsList a prog:ExplList ;
-            prog:ExplList_content ?constrains .
+            (prog:ExplList_next)*/prog:ExplList_content ?constrains .
         ?constrains a prog:Constraint ;
                     prog:Constraint_rightOperands ?operandsList .
         ?operandsList a prog:ExplList ;
-            prog:ExplList_content ?operands .
+            (prog:ExplList_next)*/prog:ExplList_content ?operands .
         ?operands a prog:Operand ;
             prog:Operand_id ?purposeValue .
         FILTER(STR(?dcId) = "$userId")
@@ -221,7 +221,7 @@ ASK {
         FILTER(STR(?policyDsId) = "$subjectId")
         
         ?permList a prog:ExplList ;
-            prog:ExplList_content ?policyPerm .
+            (prog:ExplList_next)*/prog:ExplList_content ?policyPerm .
         ?policyPerm a prog:PolicyPermission ;
                     prog:PolicyPermission_dc ?policyDc ;
                     prog:PolicyPermission_actions ?policyActionList ;
@@ -231,17 +231,17 @@ ASK {
         FILTER(STR(?policyDcId) = "$userId")
 
         ?policyActionList a prog:ExplList ;
-            prog:ExplList_content ?policyAction .
+            (prog:ExplList_next)*/prog:ExplList_content ?policyAction .
         ?policyAction a prog:Action ;
             prog:Action_type ?policyActionType .
         FILTER(STR(?policyActionType) = "$actionType")
 
         ?policyConstraintList a prog:ExplList ;
-            prog:ExplList_content ?policyConstraint .
+            (prog:ExplList_next)*/prog:ExplList_content ?policyConstraint .
         ?policyConstraint a prog:Constraint ;
             prog:Constraint_rightOperands ?policyOperandsList .
         ?policyOperandsList a prog:ExplList ;
-            prog:ExplList_content ?policyOperand .
+            (prog:ExplList_next)*/prog:ExplList_content ?policyOperand .
         ?policyOperand a prog:Operand ;
             prog:Operand_id ?policyPurposeValue .
         FILTER(STR(?policyPurposeValue) = "$purposeId")
