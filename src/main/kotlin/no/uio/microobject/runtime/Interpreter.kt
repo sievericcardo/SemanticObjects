@@ -179,8 +179,7 @@ class Interpreter(
         val queryString =
                 """
 ASK {
-    SELECT ?permission (COUNT(DISTINCT ?attrName) AS ?n) {
-    {
+    SELECT ?permission (COUNT(DISTINCT ?attrName) AS ?n) ?policy {
         ?permission a prog:RequestPermission ;
                     prog:RequestPermission_dc ?dc ;
                     prog:RequestPermission_ds ?ds ;
@@ -212,7 +211,7 @@ ASK {
         ?asset a prog:Asset ;
                 prog:Asset_attributeName ?attrName .
         FILTER(STR(?attrName) = STR(?wantedAttr))
-    } UNION {
+       
         ?policy a prog:Policy ;
                 prog:Policy_ds ?policyDs ;
                 prog:Policy_permissions ?permList .
@@ -245,9 +244,8 @@ ASK {
         ?policyOperand a prog:Operand ;
             prog:Operand_id ?policyPurposeValue .
         FILTER(STR(?policyPurposeValue) = "$purposeId")
-    }
   }
-  GROUP BY ?permission
+  GROUP BY ?permission ?policy
   HAVING (?n >= $attrCount)
 }
         """.trimIndent()

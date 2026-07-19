@@ -36,9 +36,6 @@ WHERE {
                 end
 
                 PolicyPermission newPermission = perms.content;
-                this.permissions.content = newPermission;
-                this.permissions.next = new ExplList<PolicyPermission>(null, null);
-                
                 List<PolicyPermission> lx = perms;
                 perms = perms.next;
                 print("RECONFIG> New policy permission detected: ");
