@@ -178,75 +178,77 @@ class Interpreter(
         val attrCount = attributes.toSet().size
         val queryString =
                 """
-ASK WHERE {
-  SELECT ?permission (COUNT(DISTINCT ?attrName) AS ?n) WHERE {
-    ?permission a prog:RequestPermission ;
-                prog:RequestPermission_dc ?dc ;
-                prog:RequestPermission_ds ?ds ;
-                prog:RequestPermission_actions ?actionList ;
-                prog:RequestPermission_constraints ?constrainsList .
-    ?dc a prog:DataController ;
-        prog:DataController_id ?dcId .
-    ?ds a prog:DataSubject ;
-        prog:DataSubject_id ?dsId .
-    ?actionList a prog:ExplList ;
-        (prog:ExplList_next)*/prog:ExplList_content ?action .
-    ?action a prog:Action ;
-        prog:Action_type ?actionTypeId .
-    ?constrainsList a prog:ExplList ;
-        (prog:ExplList_next)*/prog:ExplList_content ?constrains .
-    ?constrains a prog:Constraint ;
-                prog:Constraint_rightOperands ?operandsList .
-    ?operandsList a prog:ExplList ;
-        (prog:ExplList_next)*/prog:ExplList_content ?operands .
-    ?operands a prog:Operand ;
-        prog:Operand_id ?purposeValue .
-    FILTER(STR(?dcId) = "$userId")
-    FILTER(STR(?dsId) = "$subjectId")
-    FILTER(STR(?actionTypeId) = "$actionType")
-    FILTER(STR(?purposeValue) = "$purposeId")
+ASK {
+    SELECT ?permission (COUNT(DISTINCT ?attrName) AS ?n) {
+    {
+        ?permission a prog:RequestPermission ;
+                    prog:RequestPermission_dc ?dc ;
+                    prog:RequestPermission_ds ?ds ;
+                    prog:RequestPermission_actions ?actionList ;
+                    prog:RequestPermission_constraints ?constrainsList .
+        ?dc a prog:DataController ;
+            prog:DataController_id ?dcId .
+        ?ds a prog:DataSubject ;
+            prog:DataSubject_id ?dsId .
+        ?actionList a prog:ExplList ;
+            prog:ExplList_content ?action .
+        ?action a prog:Action ;
+            prog:Action_type ?actionTypeId .
+        ?constrainsList a prog:ExplList ;
+            prog:ExplList_content ?constrains .
+        ?constrains a prog:Constraint ;
+                    prog:Constraint_rightOperands ?operandsList .
+        ?operandsList a prog:ExplList ;
+            prog:ExplList_content ?operands .
+        ?operands a prog:Operand ;
+            prog:Operand_id ?purposeValue .
+        FILTER(STR(?dcId) = "$userId")
+        FILTER(STR(?dsId) = "$subjectId")
+        FILTER(STR(?actionTypeId) = "$actionType")
+        FILTER(STR(?purposeValue) = "$purposeId")
 
-    VALUES ?wantedAttr { $filterValues }
-    ?permission prog:RequestPermission_assets/(prog:ExplList_next)*/(prog:ExplList_next)*/prog:ExplList_content ?asset .
-    ?asset a prog:Asset ;
-            prog:Asset_attributeName ?attrName .
-    FILTER(STR(?attrName) = STR(?wantedAttr))
+        VALUES ?wantedAttr { $filterValues }
+        ?permission prog:RequestPermission_assets/(prog:ExplList_next)*/prog:ExplList_content ?asset .
+        ?asset a prog:Asset ;
+                prog:Asset_attributeName ?attrName .
+        FILTER(STR(?attrName) = STR(?wantedAttr))
+    } UNION {
+        ?policy a prog:Policy ;
+                prog:Policy_ds ?policyDs ;
+                prog:Policy_permissions ?permList .
+        ?policyDs a prog:DataSubject ;
+                    prog:DataSubject_id ?policyDsId .
+        FILTER(STR(?policyDsId) = "$subjectId")
+        
+        ?permList a prog:ExplList ;
+            prog:ExplList_content ?policyPerm .
+        ?policyPerm a prog:PolicyPermission ;
+                    prog:PolicyPermission_dc ?policyDc ;
+                    prog:PolicyPermission_actions ?policyActionList ;
+                    prog:PolicyPermission_constraints ?policyConstraintList .
+        ?policyDc a prog:DataController ;
+                    prog:DataController_id ?policyDcId .
+        FILTER(STR(?policyDcId) = "$userId")
 
-    ?policy a prog:Policy ;
-            prog:Policy_ds ?policyDs ;
-            prog:Policy_permissions ?permList .
-    ?policyDs a prog:DataSubject ;
-              prog:DataSubject_id ?policyDsId .
-    FILTER(STR(?policyDsId) = "$subjectId")
+        ?policyActionList a prog:ExplList ;
+            prog:ExplList_content ?policyAction .
+        ?policyAction a prog:Action ;
+            prog:Action_type ?policyActionType .
+        FILTER(STR(?policyActionType) = "$actionType")
 
-    ?permList a prog:ExplList ;
-        (prog:ExplList_next)*/prog:ExplList_content ?policyPerm .
-    ?policyPerm a prog:PolicyPermission ;
-                prog:PolicyPermission_dc ?policyDc ;
-                prog:PolicyPermission_actions ?policyActionList ;
-                prog:PolicyPermission_constraints ?policyConstraintList .
-    ?policyDc a prog:DataController ;
-              prog:DataController_id ?policyDcId .
-    FILTER(STR(?policyDcId) = "$userId")
-
-    ?policyActionList a prog:ExplList ;
-        (prog:ExplList_next)*/prog:ExplList_content ?policyAction .
-    ?policyAction a prog:Action ;
-        prog:Action_type ?policyActionType .
-    FILTER(STR(?policyActionType) = "$actionType")
-
-    ?policyConstraintList a prog:ExplList ;
-        (prog:ExplList_next)*/prog:ExplList_content ?policyConstraint .
-    ?policyConstraint a prog:Constraint ;
-        prog:Constraint_rightOperands ?policyOperandsList .
-    ?policyOperandsList a prog:ExplList ;
-        (prog:ExplList_next)*/prog:ExplList_content ?policyOperand .
-    ?policyOperand a prog:Operand ;
-        prog:Operand_id ?policyPurposeValue .
-    FILTER(STR(?policyPurposeValue) = "$purposeId")
+        ?policyConstraintList a prog:ExplList ;
+            prog:ExplList_content ?policyConstraint .
+        ?policyConstraint a prog:Constraint ;
+            prog:Constraint_rightOperands ?policyOperandsList .
+        ?policyOperandsList a prog:ExplList ;
+            prog:ExplList_content ?policyOperand .
+        ?policyOperand a prog:Operand ;
+            prog:Operand_id ?policyPurposeValue .
+        FILTER(STR(?policyPurposeValue) = "$purposeId")
+    }
   }
   GROUP BY ?permission
-  HAVING (?n = $attrCount)
+  HAVING (?n >= $attrCount)
 }
         """.trimIndent()
         val result = ask(queryString)
