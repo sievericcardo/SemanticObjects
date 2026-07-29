@@ -8,7 +8,6 @@ class Policy (String id, DataSubject ds, ExplList<PolicyPermission> permissions)
     Unit setPermissions()
         List<PolicyPermission> perms = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -61,7 +60,6 @@ abstract class Permission (
     Unit setActions()
         List<Action> acts = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -102,7 +100,6 @@ WHERE {
     Unit setPolicyConstraints()
         List<Constraint> cons = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -143,7 +140,6 @@ WHERE {
     Unit setRequestConstraints()
         List<Constraint> cons = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -188,7 +184,6 @@ class RequestPermission extends Permission(ExplList<Asset> assets)
     Unit setAssets()
         List<Asset> assets = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -245,7 +240,6 @@ class Constraint (
     Unit setRightOperands()
         List<Operand> operands = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -295,7 +289,6 @@ class AssetCollection (String id, ExplList<Asset> assets)
     Unit setAssets()
         List<Asset> assets = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -338,7 +331,6 @@ class Sotw (String id, DateTime timestamp, ExplList<AssetCollection> ac)
     Unit setAssetCollections()
         List<AssetCollection> acs = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {

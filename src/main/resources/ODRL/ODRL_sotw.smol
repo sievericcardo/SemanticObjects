@@ -2,7 +2,6 @@ class SotwModel extends ODRLModel()
     Unit adaptAddDataSubject()
         List<DataSubject> dss = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?id
 WHERE {
@@ -36,7 +35,6 @@ WHERE {
     Unit adaptAddDataController()
         List<DataController> dcs = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?id
 WHERE {
@@ -103,7 +101,6 @@ WHERE {
     Unit adaptAddOperand()
         List<Operand> purposes = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?id
 WHERE {
@@ -137,7 +134,6 @@ WHERE {
     Unit adaptAddConstraint()
         List<Constraint> constraints = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?id
 WHERE {
@@ -173,7 +169,6 @@ WHERE {
     Unit adaptAddAsset()
         List<Asset> assets = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?id ?attributeName
 WHERE {
@@ -208,7 +203,6 @@ WHERE {
     Unit adaptAddAssetCollection()
         List<AssetCollection> acs = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?id
 WHERE {
@@ -244,7 +238,6 @@ WHERE {
     Unit adaptAddSotw()
         List<Sotw> sotws = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 PREFIX dct: <http://purl.org/dc/terms/>
 
 SELECT ?id ?timestamp
@@ -296,7 +289,6 @@ WHERE {
     Unit adaptRemoveDataSubject()
         List<DataSubject> dss = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -331,7 +323,6 @@ WHERE {
     Unit adaptRemoveDataController()
         List<DataController> dcs = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -396,7 +387,6 @@ WHERE {
     Unit adaptRemoveOperand()
         List<Operand> purposes = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -429,7 +419,6 @@ WHERE {
     Unit adaptRemoveConstraint()
         List<Constraint> constraints = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -462,7 +451,6 @@ WHERE {
     Unit adaptRemoveAsset()
         List<Asset> assets = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -495,7 +483,6 @@ WHERE {
     Unit adaptRemoveAssetCollection()
         List<AssetCollection> acs = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -528,7 +515,6 @@ WHERE {
     Unit adaptRemoveSotw()
         List<Sotw> sotws = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 PREFIX dct: <http://purl.org/dc/terms/>
 
 SELECT ?obj

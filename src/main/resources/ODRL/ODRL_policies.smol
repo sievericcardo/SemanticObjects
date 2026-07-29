@@ -2,7 +2,6 @@ class PolicyModel extends ODRLModel()
     Unit adaptAddPermissions()
         List<PolicyPermission> permissions = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?id ?dc ?ac
 WHERE {
@@ -51,7 +50,6 @@ WHERE {
     Unit adaptAddPolicy()
         List<Policy> pols = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?id ?ds
 WHERE {
@@ -99,7 +97,6 @@ WHERE {
     Unit adaptRemovePermissions()
         List<PolicyPermission> permissions = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -132,7 +129,6 @@ WHERE {
     Unit adaptRemovePolicy()
         List<Policy> pols = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {

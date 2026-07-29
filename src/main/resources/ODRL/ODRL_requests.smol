@@ -2,7 +2,6 @@ class RequestModel extends ODRLModel()
     Unit adaptAddRequestPermission()
         List<RequestPermission> permissions = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?id ?dc ?ds
 WHERE {
@@ -50,7 +49,6 @@ WHERE {
     Unit adaptAddRequest()
         List<Request> requests = construct("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?id ?permission
 WHERE {
@@ -96,7 +94,6 @@ WHERE {
     Unit adaptRemoveRequestPermission()
         List<RequestPermission> permissions = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -128,7 +125,6 @@ WHERE {
     Unit adaptRemoveRequest()
         List<Request> requests = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
