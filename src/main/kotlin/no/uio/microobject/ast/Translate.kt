@@ -36,6 +36,13 @@ class Translate : WhileBaseVisitor<ProgramElement>() {
         throw Exception("Unknown models clause: $ctx") //making the type checker happy
     }
 
+    /**
+     * Add a classify query to the classifiesTable
+     *
+     * @param className the name of the class
+     * @param ctx the classifies block context
+     * @param ctxR the retrieves block context (optional)
+     */
     private fun addClassifyQuery(className: String, ctx: Classifies_blockContext, ctxR: Retrieves_blockContext?) {
         classifiesTable[className] = Pair(
             ctx.getToken(STRING, 0).text,
