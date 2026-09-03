@@ -8,19 +8,18 @@ class Policy (String id, DataSubject ds, ExplList<PolicyPermission> permissions)
     Unit setPermissions()
         List<PolicyPermission> perms = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
     ?policy a odrl:Policy ;
-        pol:identifier ?id ;
-        odrl:permissions ?odrlPermissions .
+        pol:identifier %1 ;
+        odrl:permission ?odrlPermissions .
     ?odrlPermissions a odrl:Permission ;
-        odrl:permission_id ?permissions .
+        pol:identifier ?id .
     ?obj a prog:PolicyPermission ;
-        prog:PolicyPermission_id ?id ;
+        prog:PolicyPermission_id ?id .
 }
-        ");
+        ", this.id);
 
         if perms != null then
             print("RECONFIG> New Permission(s) for Policy detected: repairing the model");
@@ -36,9 +35,6 @@ WHERE {
                 end
 
                 PolicyPermission newPermission = perms.content;
-                this.permissions.content = newPermission;
-                this.permissions.next = new ExplList<PolicyPermission>(null, null);
-
                 List<PolicyPermission> lx = perms;
                 perms = perms.next;
                 print("RECONFIG> New policy permission detected: ");
@@ -47,7 +43,7 @@ WHERE {
 
             print("RECONFIG> Permission(s) for Policy added");
         end
-
+        
     end
 end
 
@@ -64,7 +60,6 @@ abstract class Permission (
     Unit setActions()
         List<Action> acts = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -87,7 +82,7 @@ WHERE {
             while acts != null do
                 cursor.content = acts.content;
                 if acts.next != null then
-                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor.next = new ExplList<Action>(null, null);
                     cursor = cursor.next;
                 end
 
@@ -105,7 +100,6 @@ WHERE {
     Unit setPolicyConstraints()
         List<Constraint> cons = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -128,7 +122,7 @@ WHERE {
             while cons != null do
                 cursor.content = cons.content;
                 if cons.next != null then
-                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor.next = new ExplList<Constraint>(null, null);
                     cursor = cursor.next;
                 end
 
@@ -146,7 +140,6 @@ WHERE {
     Unit setRequestConstraints()
         List<Constraint> cons = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -169,7 +162,7 @@ WHERE {
             while cons != null do
                 cursor.content = cons.content;
                 if cons.next != null then
-                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor.next = new ExplList<Constraint>(null, null);
                     cursor = cursor.next;
                 end
 
@@ -191,7 +184,6 @@ class RequestPermission extends Permission(ExplList<Asset> assets)
     Unit setAssets()
         List<Asset> assets = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -248,7 +240,6 @@ class Constraint (
     Unit setRightOperands()
         List<Operand> operands = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -270,7 +261,7 @@ WHERE {
             while operands != null do
                 cursor.content = operands.content;
                 if operands.next != null then
-                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor.next = new ExplList<Operand>(null, null);
                     cursor = cursor.next;
                 end
 
@@ -298,7 +289,6 @@ class AssetCollection (String id, ExplList<Asset> assets)
     Unit setAssets()
         List<Asset> assets = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -321,7 +311,7 @@ WHERE {
             while assets != null do
                 cursor.content = assets.content;
                 if assets.next != null then
-                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor.next = new ExplList<Asset>(null, null);
                     cursor = cursor.next;
                 end
 
@@ -341,7 +331,6 @@ class Sotw (String id, DateTime timestamp, ExplList<AssetCollection> ac)
     Unit setAssetCollections()
         List<AssetCollection> acs = access("
 PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
-PREFIX pol: <http://www.smolang.org/greenhouseDT-policy#>
 
 SELECT ?obj
 WHERE {
@@ -364,7 +353,7 @@ WHERE {
             while acs != null do
                 cursor.content = acs.content;
                 if acs.next != null then
-                    cursor.next = new ExplList<PolicyPermission>(null, null);
+                    cursor.next = new ExplList<AssetCollection>(null, null);
                     cursor = cursor.next;
                 end
 
@@ -377,4 +366,5 @@ WHERE {
 
             print("RECONFIG> Asset Collection(s) added");
         end
+    end
 end
