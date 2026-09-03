@@ -224,7 +224,8 @@ ASK {
         ?policyPerm a prog:PolicyPermission ;
                     prog:PolicyPermission_dc ?policyDc ;
                     prog:PolicyPermission_actions ?policyActionList ;
-                    prog:PolicyPermission_constraints ?policyConstraintList .
+                    prog:PolicyPermission_constraints ?policyConstraintList ;
+                    prog:PolicyPermission_ac ?assetCollection .
         ?policyDc a prog:DataController ;
                     prog:DataController_id ?policyDcId .
         FILTER(STR(?policyDcId) = "$userId")
@@ -244,6 +245,12 @@ ASK {
         ?policyOperand a prog:Operand ;
             prog:Operand_id ?policyPurposeValue .
         FILTER(STR(?policyPurposeValue) = "$purposeId")
+        
+        ?assetCollection a prog:AssetCollection .
+        ?assetCollection prog:AssetCollection_assets/(prog:ExplList_next)*/prog:ExplList_content ?policyAsset .
+        ?policyAsset a prog:Asset ;
+            prog:Asset_attributeName ?policyAttrName .
+        FILTER(STR(?policyAttrName) = STR(?wantedAttr))
   }
   GROUP BY ?permission ?policy
   HAVING (?n >= $attrCount)
