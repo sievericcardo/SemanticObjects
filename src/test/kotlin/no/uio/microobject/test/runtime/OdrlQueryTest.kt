@@ -28,7 +28,7 @@ class OdrlQueryTest : MicroObjectTest() {
             purposeId = "purpose-1",
             attributes = emptyList()
         )
-        allowedNoAttrs shouldBe true
+        allowedNoAttrs shouldBe false
 
         val (allowedWithAttrs, _) = interpreter.odrlQuery(
             userId = "dc-1",
